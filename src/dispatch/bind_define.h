@@ -1976,6 +1976,86 @@ int32_t dumpclients(const Arg *arg) {
 	return 0;
 }
 
+/* Helper to sanitize appid for use as filename */
+static void sanitize_appid(const char *appid, char *out, size_t outlen) {
+	if (!appid || appid[0] == '\0') appid = "unknown";
+	size_t j = 0;
+	for (int i = 0; appid[i] && j < outlen - 1; i++) {
+		char ch = appid[i];
+		if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+			(ch >= '0' && ch <= '9') || ch == '-' || ch == '_')
+			out[j++] = ch;
+		else
+			out[j++] = '_';
+	}
+	out[j] = '\0';
+}
+
+/* Read client surface pixels into malloc'd buffer. Returns NULL on failure.
+ * Tries direct data_ptr access first (fast, for SHM buffers), then falls
+ * back to wlr_texture_read_pixels (works for DMA-BUF/GPU buffers).
+ * Caller must free() the returned buffer. */
+static uint8_t *read_surface_pixels(struct wlr_surface *surface,
+		int *out_w, int *out_h, uint32_t *out_format) {
+	if (!surface || !surface->buffer)
+		return NULL;
+
+	struct wlr_buffer *buffer = &surface->buffer->base;
+	int w = buffer->width, h = buffer->height;
+
+	/* Fast path: direct CPU access (works for SHM buffers) */
+	void *data = NULL;
+	uint32_t format = 0;
+	size_t stride = 0;
+	if (wlr_buffer_begin_data_ptr_access(buffer,
+			WLR_BUFFER_DATA_PTR_ACCESS_READ, &data, &format, &stride)) {
+		size_t size = stride * h;
+		uint8_t *copy = malloc(size);
+		if (copy) {
+			memcpy(copy, data, size);
+			*out_w = w;
+			*out_h = h;
+			*out_format = format;
+			wlr_buffer_end_data_ptr_access(buffer);
+			return copy;
+		}
+		wlr_buffer_end_data_ptr_access(buffer);
+	}
+
+	/* Slow path: use texture read_pixels (works for DMA-BUF) */
+	struct wlr_texture *texture = surface->buffer->texture;
+	if (!texture)
+		return NULL;
+
+	/* Get the preferred format for reading */
+	uint32_t read_fmt = wlr_texture_preferred_read_format(texture);
+	if (read_fmt == 0)
+		read_fmt = 0x34325241; /* DRM_FORMAT_ARGB8888 fallback */
+
+	uint32_t read_stride = w * 4;
+	uint8_t *pixels = malloc(read_stride * h);
+	if (!pixels)
+		return NULL;
+
+	struct wlr_texture_read_pixels_options opts = {
+		.data = pixels,
+		.format = read_fmt,
+		.stride = read_stride,
+		.dst_x = 0,
+		.dst_y = 0,
+	};
+
+	if (!wlr_texture_read_pixels(texture, &opts)) {
+		free(pixels);
+		return NULL;
+	}
+
+	*out_w = w;
+	*out_h = h;
+	*out_format = read_fmt;
+	return pixels;
+}
+
 int32_t dumpscreens(const Arg *arg) {
 	const char *dirpath = arg->v;
 	if (!dirpath || dirpath[0] == '\0')
@@ -1984,98 +2064,54 @@ int32_t dumpscreens(const Arg *arg) {
 	/* Create output directory */
 	mkdir(dirpath, 0755);
 
-	Client *c;
-	int idx = 0;
-	wl_list_for_each(c, &clients, link) {
-		struct wlr_surface *surface = client_surface(c);
-		if (!surface || !surface->buffer)
-			continue;
-
-		struct wlr_buffer *buffer = &surface->buffer->base;
-		void *data = NULL;
-		uint32_t format = 0;
-		size_t stride = 0;
-
-		if (!wlr_buffer_begin_data_ptr_access(buffer,
-				WLR_BUFFER_DATA_PTR_ACCESS_READ, &data, &format, &stride))
-			continue;
-
-		/* Build filename: dir/appid_idx.ppm */
-		char filepath[512];
-		const char *appid = client_get_appid(c);
-		if (!appid || appid[0] == '\0') appid = "unknown";
-
-		/* Sanitize appid for filename */
-		char safe_appid[128];
-		int j = 0;
-		for (int i = 0; appid[i] && j < 126; i++) {
-			char ch = appid[i];
-			if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-				(ch >= '0' && ch <= '9') || ch == '-' || ch == '_')
-				safe_appid[j++] = ch;
-			else
-				safe_appid[j++] = '_';
-		}
-		safe_appid[j] = '\0';
-
-		snprintf(filepath, sizeof(filepath), "%s/%s_%d.ppm",
-				dirpath, safe_appid, idx);
-
-		write_ppm(filepath, data, buffer->width, buffer->height, stride, format);
-		wlr_buffer_end_data_ptr_access(buffer);
-		idx++;
-	}
-
-	/* Also write an index JSON with appid -> filename mapping */
+	/* First pass: dump all client surfaces to PPM files and build index */
 	char indexpath[512];
 	snprintf(indexpath, sizeof(indexpath), "%s/index.json", dirpath);
-	FILE *f = fopen(indexpath, "w");
-	if (f) {
-		int first = 1;
-		idx = 0;
-		fprintf(f, "[");
-		wl_list_for_each(c, &clients, link) {
-			struct wlr_surface *surface = client_surface(c);
-			if (!surface || !surface->buffer) {
-				idx++;
-				continue;
-			}
-			if (!first) fprintf(f, ",");
-			fprintf(f, "{\"appid\":");
-			json_escape_string(f, client_get_appid(c));
-			fprintf(f, ",\"title\":");
-			json_escape_string(f, client_get_title(c));
+	FILE *fi = fopen(indexpath, "w");
+	if (!fi) return 0;
 
-			char safe_appid[128];
-			const char *appid = client_get_appid(c);
-			if (!appid || appid[0] == '\0') appid = "unknown";
-			int j = 0;
-			for (int i = 0; appid[i] && j < 126; i++) {
-				char ch = appid[i];
-				if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-					(ch >= '0' && ch <= '9') || ch == '-' || ch == '_')
-					safe_appid[j++] = ch;
-				else
-					safe_appid[j++] = '_';
-			}
-			safe_appid[j] = '\0';
+	fprintf(fi, "[");
+	Client *c;
+	int idx = 0;
+	int first = 1;
+	wl_list_for_each(c, &clients, link) {
+		int w = 0, h = 0;
+		uint32_t format = 0;
+		uint8_t *pixels = read_surface_pixels(client_surface(c), &w, &h, &format);
+		if (!pixels)
+			continue;
 
-			char filepath[512];
-			snprintf(filepath, sizeof(filepath), "%s_%d.ppm", safe_appid, idx);
-			fprintf(f, ",\"file\":");
-			json_escape_string(f, filepath);
-			fprintf(f, ",\"tags\":%u", c->tags);
-			fprintf(f, ",\"monitor\":");
-			json_escape_string(f, c->mon ? c->mon->wlr_output->name : "");
-			fprintf(f, ",\"w\":%d,\"h\":%d", surface->buffer->base.width,
-					surface->buffer->base.height);
-			fprintf(f, "}");
-			first = 0;
-			idx++;
-		}
-		fprintf(f, "]\n");
-		fclose(f);
+		char safe_appid[128];
+		sanitize_appid(client_get_appid(c), safe_appid, sizeof(safe_appid));
+
+		char relname[256];
+		snprintf(relname, sizeof(relname), "%s_%d.ppm", safe_appid, idx);
+
+		char filepath[512];
+		snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, relname);
+
+		uint32_t stride = w * 4;
+		write_ppm(filepath, pixels, w, h, stride, format);
+		free(pixels);
+
+		/* Write index entry */
+		if (!first) fprintf(fi, ",");
+		fprintf(fi, "{\"appid\":");
+		json_escape_string(fi, client_get_appid(c));
+		fprintf(fi, ",\"title\":");
+		json_escape_string(fi, client_get_title(c));
+		fprintf(fi, ",\"file\":");
+		json_escape_string(fi, relname);
+		fprintf(fi, ",\"tags\":%u", c->tags);
+		fprintf(fi, ",\"monitor\":");
+		json_escape_string(fi, c->mon ? c->mon->wlr_output->name : "");
+		fprintf(fi, ",\"w\":%d,\"h\":%d", w, h);
+		fprintf(fi, "}");
+		first = 0;
+		idx++;
 	}
+	fprintf(fi, "]\n");
+	fclose(fi);
 
 	return 0;
 }
