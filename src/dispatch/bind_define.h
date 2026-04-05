@@ -1996,7 +1996,7 @@ static void sanitize_appid(const char *appid, char *out, size_t outlen) {
  * back to wlr_texture_read_pixels (works for DMA-BUF/GPU buffers).
  * Caller must free() the returned buffer. */
 static uint8_t *read_surface_pixels(struct wlr_surface *surface,
-		int *out_w, int *out_h, uint32_t *out_format) {
+		int *out_w, int *out_h, uint32_t *out_format, uint32_t *out_stride) {
 	if (!surface || !surface->buffer)
 		return NULL;
 
@@ -2016,6 +2016,7 @@ static uint8_t *read_surface_pixels(struct wlr_surface *surface,
 			*out_w = w;
 			*out_h = h;
 			*out_format = format;
+			*out_stride = (uint32_t)stride;
 			wlr_buffer_end_data_ptr_access(buffer);
 			return copy;
 		}
@@ -2053,6 +2054,7 @@ static uint8_t *read_surface_pixels(struct wlr_surface *surface,
 	*out_w = w;
 	*out_h = h;
 	*out_format = read_fmt;
+	*out_stride = read_stride;
 	return pixels;
 }
 
@@ -2076,8 +2078,8 @@ int32_t dumpscreens(const Arg *arg) {
 	int first = 1;
 	wl_list_for_each(c, &clients, link) {
 		int w = 0, h = 0;
-		uint32_t format = 0;
-		uint8_t *pixels = read_surface_pixels(client_surface(c), &w, &h, &format);
+		uint32_t format = 0, stride = 0;
+		uint8_t *pixels = read_surface_pixels(client_surface(c), &w, &h, &format, &stride);
 		if (!pixels)
 			continue;
 
@@ -2090,7 +2092,6 @@ int32_t dumpscreens(const Arg *arg) {
 		char filepath[512];
 		snprintf(filepath, sizeof(filepath), "%s/%s", dirpath, relname);
 
-		uint32_t stride = w * 4;
 		write_ppm(filepath, pixels, w, h, stride, format);
 		free(pixels);
 
