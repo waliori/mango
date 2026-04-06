@@ -11,7 +11,7 @@
 #include <scenefx/render/fx_renderer/fx_renderer.h>
 #include <scenefx/types/fx/blur_data.h>
 #include <scenefx/types/fx/clipped_region.h>
-#include <scenefx/types/fx/corner_location.h>
+// corner_location.h removed in scenefx 0.4 — now uses fx_corner_radii from clipped_region.h
 #include <scenefx/types/wlr_scene.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -43,6 +43,7 @@
 #include <wlr/types/wlr_drm_lease_v1.h>
 #include <wlr/types/wlr_export_dmabuf_v1.h>
 #include <wlr/types/wlr_ext_data_control_v1.h>
+#include <wlr/types/wlr_ext_foreign_toplevel_list_v1.h>
 #include <wlr/types/wlr_ext_image_capture_source_v1.h>
 #include <wlr/types/wlr_ext_image_copy_capture_v1.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
@@ -303,7 +304,7 @@ typedef struct {
 	float height_scale;
 	int32_t width;
 	int32_t height;
-	enum corner_location corner_location;
+	struct fx_corner_radii corner_radii;
 	bool should_scale;
 } BufferData;
 
@@ -347,6 +348,7 @@ struct Client {
 	bool dirty;
 	uint32_t configure_serial;
 	struct wlr_foreign_toplevel_handle_v1 *foreign_toplevel;
+	struct wlr_ext_foreign_toplevel_handle_v1 *ext_toplevel;
 	int32_t isfloating, isurgent, isfullscreen, isfakefullscreen,
 		need_float_size_reduce, isminimized, isoverlay, isnosizehint,
 		ignore_maximize, ignore_minimize, indleinhibit_when_focus;
@@ -765,7 +767,7 @@ static double find_animation_curve_at(double t, int32_t type);
 
 static void apply_opacity_to_rect_nodes(Client *c, struct wlr_scene_node *node,
 										double animation_passed);
-static enum corner_location set_client_corner_location(Client *c);
+static struct fx_corner_radii set_client_corner_radii(Client *c);
 static double all_output_frame_duration_ms();
 static struct wlr_scene_tree *
 wlr_scene_tree_snapshot(struct wlr_scene_node *node,
@@ -2401,13 +2403,8 @@ static void iter_layer_scene_buffers(struct wlr_scene_buffer *buffer,
 		return;
 	}
 
-	wlr_scene_buffer_set_backdrop_blur(buffer, true);
-	wlr_scene_buffer_set_backdrop_blur_ignore_transparent(buffer, true);
-	if (config.blur_optimized) {
-		wlr_scene_buffer_set_backdrop_blur_optimized(buffer, true);
-	} else {
-		wlr_scene_buffer_set_backdrop_blur_optimized(buffer, false);
-	}
+	// TODO: backdrop_blur removed in scenefx 0.4 — use wlr_scene_blur nodes
+	(void)buffer;
 }
 
 void layer_flush_blur_background(LayerSurface *l) {
@@ -4020,17 +4017,8 @@ static void iter_xdg_scene_buffers(struct wlr_scene_buffer *buffer, int32_t sx,
 	if (wlr_subsurface_try_from_wlr_surface(surface) != NULL)
 		return;
 
-	if (config.blur && c && !c->noblur) {
-		wlr_scene_buffer_set_backdrop_blur(buffer, true);
-		wlr_scene_buffer_set_backdrop_blur_ignore_transparent(buffer, false);
-		if (config.blur_optimized) {
-			wlr_scene_buffer_set_backdrop_blur_optimized(buffer, true);
-		} else {
-			wlr_scene_buffer_set_backdrop_blur_optimized(buffer, false);
-		}
-	} else {
-		wlr_scene_buffer_set_backdrop_blur(buffer, false);
-	}
+	// TODO: backdrop_blur removed in scenefx 0.4 — use wlr_scene_blur nodes
+	(void)c;
 }
 
 void init_client_properties(Client *c) {
@@ -4179,8 +4167,7 @@ mapnotify(struct wl_listener *listener, void *data) {
 		c->scene, 0, 0, c->isurgent ? config.urgentcolor : config.bordercolor);
 	wlr_scene_node_lower_to_bottom(&c->border->node);
 	wlr_scene_node_set_position(&c->border->node, 0, 0);
-	wlr_scene_rect_set_corner_radius(c->border, config.border_radius,
-									 config.border_radius_location_default);
+	wlr_scene_rect_set_corner_radius(c->border, config.border_radius);
 	wlr_scene_node_set_enabled(&c->border->node, true);
 
 	c->shadow =
@@ -5511,6 +5498,20 @@ void handle_print_status(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void handle_ftl_capture_request(struct wl_listener *listener, void *data) {
+	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *req = data;
+	Client *c = req->toplevel_handle ? req->toplevel_handle->data : NULL;
+	if (!c || !c->scene) {
+		return;
+	}
+	struct wlr_ext_image_capture_source_v1 *source =
+		wlr_ext_image_capture_source_v1_create_with_scene_node(
+			&c->scene->node, wl_display_get_event_loop(dpy), alloc, drw);
+	if (source) {
+		wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(req, source);
+	}
+}
+
 void setup(void) {
 
 	setenv("XDG_CURRENT_DESKTOP", "mango", 1);
@@ -5599,6 +5600,16 @@ void setup(void) {
 	wlr_screencopy_manager_v1_create(dpy);
 	wlr_ext_image_copy_capture_manager_v1_create(dpy, 1);
 	wlr_ext_output_image_capture_source_manager_v1_create(dpy, 1);
+
+	/* ext-foreign-toplevel-list + per-toplevel capture source for live previews */
+	ext_toplevel_list = wlr_ext_foreign_toplevel_list_v1_create(dpy, 1);
+	{
+		struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *ftl_cap =
+			wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(dpy, 1);
+		static struct wl_listener ftl_capture_request = {0};
+		ftl_capture_request.notify = handle_ftl_capture_request;
+		wl_signal_add(&ftl_cap->events.new_request, &ftl_capture_request);
+	}
 	wlr_data_control_manager_v1_create(dpy);
 	wlr_data_device_manager_create(dpy);
 	wlr_primary_selection_v1_device_manager_create(dpy);
@@ -6631,8 +6642,7 @@ void xwaylandready(struct wl_listener *listener, void *data) {
 	/* Set the default XWayland cursor to match the rest of dwl. */
 	if ((xcursor = wlr_xcursor_manager_get_xcursor(cursor_mgr, "default", 1)))
 		wlr_xwayland_set_cursor(
-			xwayland, xcursor->images[0]->buffer, xcursor->images[0]->width * 4,
-			xcursor->images[0]->width, xcursor->images[0]->height,
+			xwayland, wlr_xcursor_image_get_buffer(xcursor->images[0]),
 			xcursor->images[0]->hotspot_x, xcursor->images[0]->hotspot_y);
 	/* xwayland can't auto sync the keymap, so we do it manually
 	  and we need to wait the xwayland completely inited

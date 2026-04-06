@@ -175,15 +175,12 @@ static bool scene_node_snapshot(struct wlr_scene_node *node, int32_t lx,
 
 		// Effects
 		wlr_scene_buffer_set_opacity(snapshot_buffer, scene_buffer->opacity);
-		wlr_scene_buffer_set_corner_radius(snapshot_buffer,
-										   scene_buffer->corner_radius,
-										   scene_buffer->corners);
+		wlr_scene_buffer_set_corner_radii(snapshot_buffer,
+										  scene_buffer->corners);
 
 		// wlr_scene_buffer_set_backdrop_blur_optimized(
 		// 	snapshot_buffer, scene_buffer->backdrop_blur_optimized);
-		// wlr_scene_buffer_set_backdrop_blur_ignore_transparent(
-		// 	snapshot_buffer, scene_buffer->backdrop_blur_ignore_transparent);
-		wlr_scene_buffer_set_backdrop_blur(snapshot_buffer, false);
+		// backdrop_blur removed in scenefx 0.4
 
 		snapshot_buffer->node.data = scene_buffer->node.data;
 

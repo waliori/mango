@@ -286,7 +286,7 @@ typedef struct {
 	int32_t blur_layer;
 	int32_t blur_optimized;
 	int32_t border_radius;
-	int32_t border_radius_location_default;
+	// border_radius_location removed — scenefx now uses fx_corner_radii
 	struct blur_data blur_params;
 	int32_t shadows;
 	int32_t shadow_only_floating;
@@ -3369,7 +3369,7 @@ void set_value_default() {
 	config.blur_layer = 0;
 	config.blur_optimized = 1;
 	config.border_radius = 0;
-	config.border_radius_location_default = CORNER_LOCATION_ALL;
+	// border_radius_location removed
 	config.blur_params.num_passes = 1;
 	config.blur_params.radius = 5;
 	config.blur_params.noise = 0.02f;

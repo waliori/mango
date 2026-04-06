@@ -1,6 +1,8 @@
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
+#include <wlr/types/wlr_ext_foreign_toplevel_list_v1.h>
 
 static struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_manager;
+static struct wlr_ext_foreign_toplevel_list_v1 *ext_toplevel_list;
 
 void handle_foreign_activate_request(struct wl_listener *listener, void *data) {
 	Client *c = wl_container_of(listener, c, foreign_activate_request);
@@ -103,6 +105,10 @@ void handle_foreign_destroy(struct wl_listener *listener, void *data) {
 void remove_foreign_topleve(Client *c) {
 	wlr_foreign_toplevel_handle_v1_destroy(c->foreign_toplevel);
 	c->foreign_toplevel = NULL;
+	if (c->ext_toplevel) {
+		wlr_ext_foreign_toplevel_handle_v1_destroy(c->ext_toplevel);
+		c->ext_toplevel = NULL;
+	}
 }
 
 void add_foreign_toplevel(Client *c) {
@@ -141,6 +147,21 @@ void add_foreign_toplevel(Client *c) {
 		// 设置外部顶层句柄的显示监视器为当前监视器
 		wlr_foreign_toplevel_handle_v1_output_enter(c->foreign_toplevel,
 													c->mon->wlr_output);
+	}
+
+	// Create ext-foreign-toplevel handle for image capture source protocol
+	if (ext_toplevel_list) {
+		const char *appid = client_get_appid(c);
+		const char *title = client_get_title(c);
+		struct wlr_ext_foreign_toplevel_handle_v1_state ext_state = {
+			.app_id = appid ? appid : "",
+			.title = title ? title : "",
+		};
+		c->ext_toplevel = wlr_ext_foreign_toplevel_handle_v1_create(
+			ext_toplevel_list, &ext_state);
+		if (c->ext_toplevel) {
+			c->ext_toplevel->data = c;
+		}
 	}
 }
 
