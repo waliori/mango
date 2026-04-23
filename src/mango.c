@@ -2399,18 +2399,8 @@ static void iter_layer_scene_buffers(struct wlr_scene_buffer *buffer,
 		return;
 	}
 
-	// scenefx's blur_ignore_transparent has broken coord math on rotated
-	// outputs (upstream issue wlrfx/scenefx#132). Pass false when the
-	// layer's monitor has a non-normal transform so we avoid the misplaced
-	// blur-rectangle artifact; the cost is that the transparent regions
-	// behind the layer get blurred through too, but that's consistent and
-	// not visually broken.
-	LayerSurface *l = user_data;
-	bool rotated_output = l && l->mon && l->mon->wlr_output &&
-		l->mon->wlr_output->transform != WL_OUTPUT_TRANSFORM_NORMAL;
-
 	wlr_scene_buffer_set_backdrop_blur(buffer, true);
-	wlr_scene_buffer_set_backdrop_blur_ignore_transparent(buffer, !rotated_output);
+	wlr_scene_buffer_set_backdrop_blur_ignore_transparent(buffer, true);
 	if (config.blur_optimized) {
 		wlr_scene_buffer_set_backdrop_blur_optimized(buffer, true);
 	} else {
