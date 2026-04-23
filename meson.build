@@ -38,7 +38,10 @@ xkbcommon_dep = dependency('xkbcommon')
 libinput_dep = dependency('libinput',version: '>=1.27.1')
 libwayland_client_dep = dependency('wayland-client')
 pcre2_dep = dependency('libpcre2-8')
-libscenefx_dep = dependency('scenefx-0.4',version: '>=0.4.1')
+# scenefx is vendored at subprojects/scenefx/ — see VENDOR.md there.
+libscenefx_dep = dependency('scenefx-0.4',
+  version: '>=0.4.1',
+  fallback: ['scenefx', 'scenefx'])
 
 
 # 获取版本信息

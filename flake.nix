@@ -2,10 +2,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    scenefx = {
-      url = "github:wlrfx/scenefx";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # scenefx is vendored at subprojects/scenefx/ and consumed via meson
+    # subproject. No external flake input needed.
   };
 
   outputs = {
@@ -29,9 +27,7 @@
         ...
       }: let
         inherit (pkgs) callPackage ;
-        mango = callPackage ./nix {
-          inherit (inputs.scenefx.packages.${pkgs.stdenv.hostPlatform.system}) scenefx;
-        };
+        mango = callPackage ./nix {};
         shellOverride = old: {
           nativeBuildInputs = old.nativeBuildInputs ++ [];
           buildInputs = old.buildInputs ++ [];

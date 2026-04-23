@@ -1,6 +1,8 @@
 {
   lib,
   libX11,
+  libdrm,
+  libgbm,
   libinput,
   libxcb,
   libxkbcommon,
@@ -15,7 +17,6 @@
   xwayland,
   meson,
   ninja,
-  scenefx,
   wlroots_0_19,
   libGL,
   enableXWayland ? true,
@@ -44,6 +45,8 @@ stdenv.mkDerivation {
 
   buildInputs =
     [
+      libdrm
+      libgbm
       libinput
       libxcb
       libxkbcommon
@@ -52,7 +55,6 @@ stdenv.mkDerivation {
       wayland
       wayland-protocols
       wlroots_0_19
-      scenefx
       libGL
     ]
     ++ lib.optionals enableXWayland [
