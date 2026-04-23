@@ -29,6 +29,14 @@ stdenv.mkDerivation {
   src = builtins.path {
     path = ../.;
     name = "source";
+    # Keep local `meson setup build`/`result`/caches out of the sandbox —
+    # a pre-existing build/ dir makes mesonConfigurePhase refuse flags.
+    filter = path: type:
+      let base = baseNameOf path;
+      in !(type == "directory" && (base == "build" ||
+                                   base == "result" ||
+                                   base == ".cache" ||
+                                   base == ".git"));
   };
 
   mesonFlags = [
