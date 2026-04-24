@@ -78,6 +78,7 @@ typedef struct {
 	int32_t ignore_maximize;
 	int32_t ignore_minimize;
 	int32_t isnosizehint;
+	int32_t atstartup;
 	int32_t indleinhibit_when_focus;
 	char *monitor;
 	int32_t offsetx;
@@ -2108,6 +2109,7 @@ bool parse_option(Config *config, char *key, char *value) {
 		rule->ignore_maximize = -1;
 		rule->ignore_minimize = -1;
 		rule->isnosizehint = -1;
+		rule->atstartup = -1;
 		rule->indleinhibit_when_focus = -1;
 		rule->isterm = -1;
 		rule->allow_csd = -1;
@@ -2219,6 +2221,8 @@ bool parse_option(Config *config, char *key, char *value) {
 					rule->ignore_minimize = atoi(val);
 				} else if (strcmp(key, "isnosizehint") == 0) {
 					rule->isnosizehint = atoi(val);
+				} else if (strcmp(key, "atstartup") == 0) {
+					rule->atstartup = atoi(val);
 				} else if (strcmp(key, "indleinhibit_when_focus") == 0) {
 					rule->indleinhibit_when_focus = atoi(val);
 				} else if (strcmp(key, "isterm") == 0) {

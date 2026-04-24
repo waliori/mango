@@ -824,6 +824,9 @@ static void client_pending_minimized_state(Client *c, int32_t isminimized);
 /* variables */
 static const char broken[] = "broken";
 static pid_t child_pid = -1;
+/* Set at end of setup(); used by windowrule atstartup:1 to only apply
+ * during the first 60 seconds after the compositor starts. */
+static uint32_t startup_time = 0;
 static int32_t locked;
 static uint32_t locked_mods = 0;
 static void *exclusive_focus;
@@ -1517,6 +1520,13 @@ void applyrules(Client *c) {
 
 		// rule matching
 		if (!is_window_rule_matches(r, appid, title))
+			continue;
+
+		/* atstartup:1 rules only apply during the first 60s after mango
+		 * setup completes — useful for placing session apps on specific
+		 * tags without affecting later-spawned windows of the same app. */
+		if (r->atstartup > 0 && startup_time &&
+			get_now_in_ms() - startup_time > 60 * 1000)
 			continue;
 
 		// set general properties
@@ -5919,6 +5929,9 @@ void setup(void) {
 	sync_keymap = wl_event_loop_add_timer(wl_display_get_event_loop(dpy),
 										  synckeymap, NULL);
 #endif
+
+	/* Record setup completion for the atstartup windowrule. */
+	startup_time = get_now_in_ms();
 }
 
 void startdrag(struct wl_listener *listener, void *data) {
