@@ -358,6 +358,9 @@ typedef struct {
 	char **exec_once;
 	int32_t exec_once_count;
 
+	char **exec_shutdown;
+	int32_t exec_shutdown_count;
+
 	char *cursor_theme;
 	uint32_t cursor_size;
 
@@ -1247,6 +1250,15 @@ void run_exec_once() {
 
 	for (int32_t i = 0; i < config.exec_once_count; i++) {
 		arg.v = config.exec_once[i];
+		spawn_shell(&arg);
+	}
+}
+
+void run_exec_shutdown() {
+	Arg arg;
+
+	for (int32_t i = 0; i < config.exec_shutdown_count; i++) {
+		arg.v = config.exec_shutdown[i];
 		spawn_shell(&arg);
 	}
 }
@@ -2328,6 +2340,29 @@ bool parse_option(Config *config, char *key, char *value) {
 
 		config->exec_once_count++;
 
+	} else if (strncmp(key, "exec-shutdown", 13) == 0) {
+
+		char **new_exec_shutdown =
+			realloc(config->exec_shutdown,
+					(config->exec_shutdown_count + 1) * sizeof(char *));
+		if (!new_exec_shutdown) {
+			fprintf(stderr,
+					"\033[1m\033[31m[ERROR]:\033[33m Failed to allocate "
+					"memory for exec_shutdown\n");
+			return false;
+		}
+		config->exec_shutdown = new_exec_shutdown;
+
+		config->exec_shutdown[config->exec_shutdown_count] = strdup(value);
+		if (!config->exec_shutdown[config->exec_shutdown_count]) {
+			fprintf(stderr,
+					"\033[1m\033[31m[ERROR]:\033[33m Failed to duplicate "
+					"exec_shutdown string\n");
+			return false;
+		}
+
+		config->exec_shutdown_count++;
+
 	} else if (regex_match("^bind[s|l|r|p]*$", key)) {
 		config->key_bindings =
 			realloc(config->key_bindings,
@@ -3117,6 +3152,16 @@ void free_config(void) {
 		free(config.exec_once);
 		config.exec_once = NULL;
 		config.exec_once_count = 0;
+	}
+
+	// 释放 exec_shutdown
+	if (config.exec_shutdown) {
+		for (i = 0; i < config.exec_shutdown_count; i++) {
+			free(config.exec_shutdown[i]);
+		}
+		free(config.exec_shutdown);
+		config.exec_shutdown = NULL;
+		config.exec_shutdown_count = 0;
 	}
 
 	// 释放 scroller_proportion_preset

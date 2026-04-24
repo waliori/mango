@@ -2322,6 +2322,7 @@ void cleanuplisteners(void) {
 }
 
 void cleanup(void) {
+	run_exec_shutdown();
 	cleanuplisteners();
 #ifdef XWAYLAND
 	wlr_xwayland_destroy(xwayland);
