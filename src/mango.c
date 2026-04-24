@@ -348,6 +348,7 @@ struct Client {
 	bool dirty;
 	uint32_t configure_serial;
 	struct wlr_foreign_toplevel_handle_v1 *foreign_toplevel;
+	struct wlr_ext_foreign_toplevel_handle_v1 *ext_foreign_toplevel;
 	struct wlr_xdg_toplevel_icon_v1 *icon;
 	int32_t isfloating, isurgent, isfullscreen, isfakefullscreen,
 		need_float_size_reduce, isminimized, isoverlay, isnosizehint,
@@ -1159,6 +1160,8 @@ void swallow(Client *c, Client *w) {
 
 	if (w->foreign_toplevel)
 		remove_foreign_topleve(w);
+	if (w->ext_foreign_toplevel)
+		remove_ext_foreign_toplevel(w);
 
 	wlr_scene_node_set_enabled(&w->scene->node, false);
 	wlr_scene_node_set_enabled(&c->scene->node, true);
@@ -1166,6 +1169,8 @@ void swallow(Client *c, Client *w) {
 
 	if (!c->foreign_toplevel && c->mon)
 		add_foreign_toplevel(c);
+	if (!c->ext_foreign_toplevel && c->mon)
+		add_ext_foreign_toplevel(c);
 
 	client_pending_fullscreen_state(c, w->isfullscreen);
 	client_pending_maximized_state(c, w->ismaximizescreen);
@@ -1181,6 +1186,7 @@ bool switch_scratchpad_client_state(Client *c) {
 		c->scratchpad_switching_mon = true;
 		c->mon = selmon;
 		reset_foreign_tolevel(c);
+		sync_ext_foreign_toplevel(c);
 		client_update_oldmonname_record(c, selmon);
 
 		// 根据新monitor调整窗口尺寸
@@ -2380,6 +2386,7 @@ void closemon(Monitor *m) {
 
 			if (selmon == NULL) {
 				remove_foreign_topleve(c);
+				remove_ext_foreign_toplevel(c);
 				c->mon = NULL;
 			} else {
 				client_change_mon(c, selmon);
@@ -3460,6 +3467,8 @@ destroynotify(struct wl_listener *listener, void *data) {
 		wlr_xdg_toplevel_icon_v1_unref(c->icon);
 		c->icon = NULL;
 	}
+	if (c->ext_foreign_toplevel)
+		remove_ext_foreign_toplevel(c);
 	wl_list_remove(&c->destroy.link);
 	wl_list_remove(&c->set_title.link);
 	wl_list_remove(&c->fullscreen.link);
@@ -5434,6 +5443,7 @@ void setmon(Client *c, Monitor *m, uint32_t newtags, bool focus) {
 	if (m) {
 		/* Make sure window actually overlaps with the monitor */
 		reset_foreign_tolevel(c);
+		sync_ext_foreign_toplevel(c);
 		resize(c, c->geom, 0);
 		client_reset_mon_tags(c, m, newtags);
 		check_match_tag_floating_rule(c, m);
@@ -5819,6 +5829,7 @@ void setup(void) {
 
 	// 创建顶层管理句柄
 	foreign_toplevel_manager = wlr_foreign_toplevel_manager_v1_create(dpy);
+	ext_foreign_toplevel_list = wlr_ext_foreign_toplevel_list_v1_create(dpy, 1);
 	struct wlr_xdg_foreign_registry *foreign_registry =
 		wlr_xdg_foreign_registry_create(dpy);
 	wlr_xdg_foreign_v1_create(dpy, foreign_registry);
@@ -6266,6 +6277,7 @@ void updatemons(struct wl_listener *listener, void *data) {
 			if (!c->mon && client_surface(c)->mapped) {
 				c->mon = selmon;
 				reset_foreign_tolevel(c);
+				sync_ext_foreign_toplevel(c);
 			}
 			if (c->tags == 0 && !c->is_in_scratchpad) {
 				c->tags = selmon->tagset[selmon->seltags];
@@ -6300,6 +6312,7 @@ void updatetitle(struct wl_listener *listener, void *data) {
 	title = client_get_title(c);
 	if (title && c->foreign_toplevel)
 		wlr_foreign_toplevel_handle_v1_set_title(c->foreign_toplevel, title);
+	update_ext_foreign_toplevel(c);
 	if (c == focustop(c->mon))
 		printstatus();
 }
