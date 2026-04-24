@@ -38,6 +38,7 @@ int32_t killclient(const Arg *arg);
 int32_t mark(const Arg *arg);
 int32_t focus_mark(const Arg *arg);
 int32_t unmark(const Arg *arg);
+int32_t swap_with_mark(const Arg *arg);
 void mark_drop_client(Client *c);
 int32_t toggleglobal(const Arg *arg);
 int32_t incnmaster(const Arg *arg);

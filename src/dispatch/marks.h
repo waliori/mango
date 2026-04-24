@@ -91,3 +91,39 @@ int32_t unmark(const Arg *arg) {
 	free(m);
 	return 0;
 }
+
+/*
+ * Swap the focused window with the window holding the given mark.
+ * The two windows trade tag + monitor. If either is the other, no-op.
+ */
+int32_t swap_with_mark(const Arg *arg) {
+	if (!arg->v || !selmon || !selmon->sel)
+		return -1;
+	struct mango_mark *m = mark_find(arg->v);
+	if (!m || !m->c || !m->c->mon)
+		return -1;
+
+	Client *a = selmon->sel;
+	Client *b = m->c;
+	if (a == b)
+		return 0;
+
+	uint32_t a_tags = a->tags;
+	Monitor *a_mon = a->mon;
+	uint32_t b_tags = b->tags;
+	Monitor *b_mon = b->mon;
+
+	a->tags = b_tags;
+	if (a_mon != b_mon)
+		client_change_mon(a, b_mon);
+
+	b->tags = a_tags;
+	if (b_mon != a_mon)
+		client_change_mon(b, a_mon);
+
+	arrange(a_mon, false, false);
+	if (b_mon != a_mon)
+		arrange(b_mon, false, false);
+	focusclient(a, 1);
+	return 0;
+}
