@@ -2251,6 +2251,23 @@ void checkidleinhibitor(struct wlr_surface *exclude) {
 		}
 	}
 
+	/* Auto-inhibit idle for any visible client that hinted content-type=video
+	 * via content-type-v1. Games don't need this — they emit regular input
+	 * activity. Videos often don't, which is why apps have historically had
+	 * to use idle-inhibit-v1 explicitly; many don't. */
+	if (!inhibited && content_type_manager) {
+		wl_list_for_each(c, &clients, link) {
+			struct wlr_surface *s = client_surface(c);
+			if (!s || !c->mon || !VISIBLEON(c, c->mon))
+				continue;
+			if (wlr_surface_get_content_type_v1(content_type_manager, s) ==
+				WP_CONTENT_TYPE_V1_TYPE_VIDEO) {
+				inhibited = 1;
+				break;
+			}
+		}
+	}
+
 	wlr_idle_notifier_v1_set_inhibited(idle_notifier, inhibited);
 }
 
