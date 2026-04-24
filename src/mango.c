@@ -85,6 +85,7 @@
 #include <wlr/types/wlr_xdg_foreign_v2.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_toplevel_icon_v1.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include <wordexp.h>
@@ -347,6 +348,7 @@ struct Client {
 	bool dirty;
 	uint32_t configure_serial;
 	struct wlr_foreign_toplevel_handle_v1 *foreign_toplevel;
+	struct wlr_xdg_toplevel_icon_v1 *icon;
 	int32_t isfloating, isurgent, isfullscreen, isfakefullscreen,
 		need_float_size_reduce, isminimized, isoverlay, isnosizehint,
 		ignore_maximize, ignore_minimize, indleinhibit_when_focus;
@@ -689,6 +691,7 @@ static void unmapnotify(struct wl_listener *listener, void *data);
 static void updatemons(struct wl_listener *listener, void *data);
 static void updatetitle(struct wl_listener *listener, void *data);
 static void urgent(struct wl_listener *listener, void *data);
+void handle_toplevel_icon_set(struct wl_listener *listener, void *data);
 static void view(const Arg *arg, bool want_animation);
 
 static void handlesig(int32_t signo);
@@ -3453,6 +3456,10 @@ void // 0.7 custom
 destroynotify(struct wl_listener *listener, void *data) {
 	/* Called when the xdg_toplevel is destroyed. */
 	Client *c = wl_container_of(listener, c, destroy);
+	if (c->icon) {
+		wlr_xdg_toplevel_icon_v1_unref(c->icon);
+		c->icon = NULL;
+	}
 	wl_list_remove(&c->destroy.link);
 	wl_list_remove(&c->set_title.link);
 	wl_list_remove(&c->fullscreen.link);
@@ -5632,6 +5639,14 @@ void setup(void) {
 	wlr_content_type_manager_v1_create(dpy, 1);
 	wlr_security_context_manager_v1_create(dpy);
 
+	struct wlr_xdg_toplevel_icon_manager_v1 *toplevel_icon_mgr =
+		wlr_xdg_toplevel_icon_manager_v1_create(dpy, 1);
+	static struct wl_listener toplevel_icon_set_listener = {
+		.notify = handle_toplevel_icon_set,
+	};
+	wl_signal_add(&toplevel_icon_mgr->events.set_icon,
+		&toplevel_icon_set_listener);
+
 	/* Creates an output layout, which a wlroots utility for working with an
 	 * arrangement of screens in a physical layout. */
 	output_layout = wlr_output_layout_create(dpy);
@@ -6287,6 +6302,16 @@ void updatetitle(struct wl_listener *listener, void *data) {
 		wlr_foreign_toplevel_handle_v1_set_title(c->foreign_toplevel, title);
 	if (c == focustop(c->mon))
 		printstatus();
+}
+
+void handle_toplevel_icon_set(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_toplevel_icon_manager_v1_set_icon_event *event = data;
+	Client *c = event->toplevel->base->data;
+	if (!c)
+		return;
+	if (c->icon)
+		wlr_xdg_toplevel_icon_v1_unref(c->icon);
+	c->icon = event->icon ? wlr_xdg_toplevel_icon_v1_ref(event->icon) : NULL;
 }
 
 void // 17 fix to 0.5
