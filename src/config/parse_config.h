@@ -170,6 +170,11 @@ typedef struct {
 	int32_t no_render_border;
 	int32_t open_as_floating;
 	int32_t no_hide;
+	/* per-tag gap overrides, -1 means "unset, inherit global config.gapp*" */
+	int32_t gap_in_h;
+	int32_t gap_in_v;
+	int32_t gap_out_h;
+	int32_t gap_out_v;
 } ConfigTagRule;
 
 typedef struct {
@@ -1912,6 +1917,10 @@ bool parse_option(Config *config, char *key, char *value) {
 		rule->no_render_border = 0;
 		rule->open_as_floating = 0;
 		rule->no_hide = 0;
+		rule->gap_in_h = -1;
+		rule->gap_in_v = -1;
+		rule->gap_out_h = -1;
+		rule->gap_out_v = -1;
 
 		bool parse_error = false;
 		char *token = strtok(value, ",");
@@ -1947,6 +1956,22 @@ bool parse_option(Config *config, char *key, char *value) {
 					rule->nmaster = CLAMP_INT(atoi(val), 1, 99);
 				} else if (strcmp(key, "mfact") == 0) {
 					rule->mfact = CLAMP_FLOAT(atof(val), 0.1f, 0.9f);
+				} else if (strcmp(key, "gap_in_h") == 0) {
+					rule->gap_in_h = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_in_v") == 0) {
+					rule->gap_in_v = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_out_h") == 0) {
+					rule->gap_out_h = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_out_v") == 0) {
+					rule->gap_out_v = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_in") == 0) {
+					int32_t v = CLAMP_INT(atoi(val), 0, 1000);
+					rule->gap_in_h = v;
+					rule->gap_in_v = v;
+				} else if (strcmp(key, "gap_out") == 0) {
+					int32_t v = CLAMP_INT(atoi(val), 0, 1000);
+					rule->gap_out_h = v;
+					rule->gap_out_v = v;
 				} else {
 					fprintf(stderr,
 							"\033[1m\033[31m[ERROR]:\033[33m Unknown "
@@ -3796,6 +3821,14 @@ void parse_tagrule(Monitor *m) {
 				m->pertag->no_render_border[tr.id] = tr.no_render_border;
 			if (tr.open_as_floating >= 0)
 				m->pertag->open_as_floating[tr.id] = tr.open_as_floating;
+			if (tr.gap_in_h >= 0)
+				m->pertag->gappih[tr.id] = tr.gap_in_h;
+			if (tr.gap_in_v >= 0)
+				m->pertag->gappiv[tr.id] = tr.gap_in_v;
+			if (tr.gap_out_h >= 0)
+				m->pertag->gappoh[tr.id] = tr.gap_out_h;
+			if (tr.gap_out_v >= 0)
+				m->pertag->gappov[tr.id] = tr.gap_out_v;
 		}
 	}
 

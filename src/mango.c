@@ -946,9 +946,33 @@ struct Pertag {
 	int32_t no_hide[LENGTH(tags) + 1];	/* no_hide per tag */
 	int32_t no_render_border[LENGTH(tags) + 1]; /* no_render_border per tag */
 	int32_t open_as_floating[LENGTH(tags) + 1]; /* open_as_floating per tag */
+	/* per-tag gap overrides, -1 means fall back to config.gapp* */
+	int32_t gappih[LENGTH(tags) + 1];
+	int32_t gappiv[LENGTH(tags) + 1];
+	int32_t gappoh[LENGTH(tags) + 1];
+	int32_t gappov[LENGTH(tags) + 1];
 	const Layout
 		*ltidxs[LENGTH(tags) + 1]; /* matrix of tags and layouts indexes  */
 };
+
+/* Per-tag gap accessors: a tagrule override wins; else fall back to the
+ * monitor's live gap setting (config default or setgaps-modified). */
+static inline int32_t pertag_gappih(Monitor *m) {
+	int32_t v = m->pertag->gappih[m->pertag->curtag];
+	return v >= 0 ? v : m->gappih;
+}
+static inline int32_t pertag_gappiv(Monitor *m) {
+	int32_t v = m->pertag->gappiv[m->pertag->curtag];
+	return v >= 0 ? v : m->gappiv;
+}
+static inline int32_t pertag_gappoh(Monitor *m) {
+	int32_t v = m->pertag->gappoh[m->pertag->curtag];
+	return v >= 0 ? v : m->gappoh;
+}
+static inline int32_t pertag_gappov(Monitor *m) {
+	int32_t v = m->pertag->gappov[m->pertag->curtag];
+	return v >= 0 ? v : m->gappov;
+}
 
 #include "config/parse_config.h"
 
@@ -3113,6 +3137,10 @@ void createmon(struct wl_listener *listener, void *data) {
 		m->pertag->nmasters[i] = config.default_nmaster;
 		m->pertag->mfacts[i] = config.default_mfact;
 		m->pertag->ltidxs[i] = &layouts[0];
+		m->pertag->gappih[i] = -1;
+		m->pertag->gappiv[i] = -1;
+		m->pertag->gappoh[i] = -1;
+		m->pertag->gappov[i] = -1;
 	}
 
 	// apply tag rule
