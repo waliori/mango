@@ -67,6 +67,7 @@
 #include <wlr/types/wlr_primary_selection_v1.h>
 #include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_security_context_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_session_lock_v1.h>
@@ -5629,6 +5630,7 @@ void setup(void) {
 	wl_signal_add(&tearing_control->events.new_object, &tearing_new_object);
 
 	wlr_content_type_manager_v1_create(dpy, 1);
+	wlr_security_context_manager_v1_create(dpy);
 
 	/* Creates an output layout, which a wlroots utility for working with an
 	 * arrangement of screens in a physical layout. */
