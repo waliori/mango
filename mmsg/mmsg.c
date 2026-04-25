@@ -200,6 +200,17 @@ static void dwl_ipc_output_appid(void *data,
 	printf("appid %s\n", appid);
 }
 
+static void dwl_ipc_output_icon(void *data,
+								struct zdwl_ipc_output_v2 *dwl_ipc_output,
+								const char *icon) {
+	if (!(cflag && mode & GET))
+		return;
+	char *output_name = data;
+	if (output_name)
+		printf("%s ", output_name);
+	printf("icon %s\n", icon);
+}
+
 static void dwl_ipc_output_x(void *data,
 							 struct zdwl_ipc_output_v2 *dwl_ipc_output,
 							 int32_t x) {
@@ -417,6 +428,7 @@ static const struct zdwl_ipc_output_v2_listener dwl_ipc_output_listener = {
 	.layout = dwl_ipc_output_layout,
 	.title = dwl_ipc_output_title,
 	.appid = dwl_ipc_output_appid,
+	.icon = dwl_ipc_output_icon,
 	.layout_symbol = dwl_ipc_output_layout_symbol,
 	.fullscreen = dwl_ipc_output_fullscreen,
 	.floating = dwl_ipc_output_floating,

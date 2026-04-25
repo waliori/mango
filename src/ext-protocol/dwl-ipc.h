@@ -158,6 +158,13 @@ void dwl_ipc_output_printstatus_to(DwlIpcOutput *ipc_output) {
 		monitor->pertag->ltidxs[monitor->pertag->curtag] - layouts);
 	zdwl_ipc_output_v2_send_title(ipc_output->resource, title ? title : broken);
 	zdwl_ipc_output_v2_send_appid(ipc_output->resource, appid ? appid : broken);
+	if (wl_resource_get_version(ipc_output->resource) >=
+		ZDWL_IPC_OUTPUT_V2_ICON_SINCE_VERSION) {
+		const char *icon_name = (focused && focused->icon && focused->icon->name)
+									? focused->icon->name
+									: "";
+		zdwl_ipc_output_v2_send_icon(ipc_output->resource, icon_name);
+	}
 	zdwl_ipc_output_v2_send_layout_symbol(ipc_output->resource, symbol);
 	if (wl_resource_get_version(ipc_output->resource) >=
 		ZDWL_IPC_OUTPUT_V2_FULLSCREEN_SINCE_VERSION) {

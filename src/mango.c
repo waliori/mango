@@ -5937,7 +5937,7 @@ void setup(void) {
 		wlr_log(WLR_INFO, "VR will not be available.");
 	}
 
-	wl_global_create(dpy, &zdwl_ipc_manager_v2_interface, 2, NULL,
+	wl_global_create(dpy, &zdwl_ipc_manager_v2_interface, 3, NULL,
 					 dwl_ipc_manager_bind);
 
 	// 创建顶层管理句柄
@@ -6445,6 +6445,8 @@ void handle_toplevel_icon_set(struct wl_listener *listener, void *data) {
 	if (c->icon)
 		wlr_xdg_toplevel_icon_v1_unref(c->icon);
 	c->icon = event->icon ? wlr_xdg_toplevel_icon_v1_ref(event->icon) : NULL;
+	if (c == focustop(c->mon))
+		printstatus();
 }
 
 void // 17 fix to 0.5
