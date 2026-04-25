@@ -168,3 +168,43 @@ int32_t swap_with_mark(const Arg *arg) {
 	focusclient(b, 1);
 	return 0;
 }
+
+/*
+ * Dump every mark to a JSON array. Mirrors dumpclients shape so external tools
+ * (rofi, Quickshell, etc.) can build a mark-jumping UI by polling a single file.
+ */
+int32_t dumpmarks(const Arg *arg) {
+	const char *filepath = arg->v;
+	if (!filepath || filepath[0] == '\0')
+		filepath = "/tmp/mango_marks.json";
+
+	FILE *f = fopen(filepath, "w");
+	if (!f)
+		return 0;
+
+	struct mango_mark *m;
+	int first = 1;
+	fprintf(f, "[");
+	wl_list_for_each(m, &marks, link) {
+		if (!m->c)
+			continue;
+		if (!first)
+			fprintf(f, ",");
+		fprintf(f, "{\"name\":");
+		json_escape_string(f, m->name);
+		fprintf(f, ",\"appid\":");
+		json_escape_string(f, client_get_appid(m->c));
+		fprintf(f, ",\"icon\":");
+		json_escape_string(f, (m->c->icon && m->c->icon->name) ? m->c->icon->name : "");
+		fprintf(f, ",\"title\":");
+		json_escape_string(f, client_get_title(m->c));
+		fprintf(f, ",\"tags\":%u", m->c->tags);
+		fprintf(f, ",\"monitor\":");
+		json_escape_string(f, m->c->mon ? m->c->mon->wlr_output->name : "");
+		fprintf(f, "}");
+		first = 0;
+	}
+	fprintf(f, "]\n");
+	fclose(f);
+	return 0;
+}
