@@ -6445,6 +6445,9 @@ void handle_toplevel_icon_set(struct wl_listener *listener, void *data) {
 	if (c->icon)
 		wlr_xdg_toplevel_icon_v1_unref(c->icon);
 	c->icon = event->icon ? wlr_xdg_toplevel_icon_v1_ref(event->icon) : NULL;
+	wlr_log(WLR_INFO, "xdg_toplevel_icon: appid=%s name=%s",
+			c->icon ? client_get_appid(c) : "(unset)",
+			(c->icon && c->icon->name) ? c->icon->name : "(no name)");
 	if (c == focustop(c->mon))
 		printstatus();
 }
