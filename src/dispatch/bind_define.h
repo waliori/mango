@@ -1956,6 +1956,8 @@ int32_t dumpclients(const Arg *arg) {
 		if (!first) fprintf(f, ",");
 		fprintf(f, "{\"appid\":");
 		json_escape_string(f, client_get_appid(c));
+		fprintf(f, ",\"icon\":");
+		json_escape_string(f, (c->icon && c->icon->name) ? c->icon->name : "");
 		fprintf(f, ",\"title\":");
 		json_escape_string(f, client_get_title(c));
 		fprintf(f, ",\"tags\":%u", c->tags);
