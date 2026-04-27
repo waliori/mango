@@ -1,9 +1,9 @@
 ---
 title: Miscellaneous
-description: Advanced settings for XWayland, focus behavior, and system integration.
+description: Advanced settings — XWayland, focus, dim_inactive, auto-dump.
 ---
 
-## System & Hardware
+## System & hardware
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
@@ -13,7 +13,7 @@ description: Advanced settings for XWayland, focus behavior, and system integrat
 | `allow_shortcuts_inhibit` | `1` | Allow shortcuts to be inhibited by clients. |
 | `vrr` | - | Set via [monitor rule](/docs/configuration/monitors#monitor-rules). |
 
-## Focus & Input
+## Focus & input
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
@@ -27,7 +27,7 @@ description: Advanced settings for XWayland, focus behavior, and system integrat
 | `axis_bind_apply_timeout` | `100` | Timeout (ms) for detecting consecutive scroll events for axis bindings. |
 | `axis_scroll_factor` | `1.0` | Scroll factor for axis scroll speed (0.1–10.0). |
 
-## Multi-Monitor & Tags
+## Multi-monitor & tags
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
@@ -37,9 +37,9 @@ description: Advanced settings for XWayland, focus behavior, and system integrat
 | `view_current_to_back` | `0` | Toggling the current tag switches back to the previously viewed tag. |
 | `scratchpad_cross_monitor` | `0` | Share the scratchpad pool across all monitors. |
 | `single_scratchpad` | `1` | Only allow one scratchpad (named or standard) to be visible at a time. |
-| `circle_layout` | - | A comma-separated list of layouts `switch_layout` cycles through,the value sample:`tile,scroller`. |
+| `circle_layout` | - | Comma-separated list of layouts `switch_layout` cycles through (e.g. `tile,scroller`). |
 
-## Window Behavior
+## Window behavior
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
@@ -49,3 +49,34 @@ description: Advanced settings for XWayland, focus behavior, and system integrat
 | `idleinhibit_ignore_visible` | `0` | Allow invisible clients (e.g., background audio players) to inhibit idle. |
 | `drag_tile_refresh_interval` | `8.0` | Interval (1.0–16.0) to refresh tiled window resize during drag. Too small may cause application lag. |
 | `drag_floating_refresh_interval` | `8.0` | Interval (1.0–16.0) to refresh floating window resize during drag. Too small may cause application lag. |
+
+## Inactive dim (NoirWM)
+
+Darken unfocused clients via overlay rect. Independent of `unfocused_opacity` — they stack.
+
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| `dim_inactive` | `0` | Enable inactive-window dim overlay. |
+| `dim_strength` | `0.3` | Dim opacity (0.0 – 1.0). |
+
+```ini
+dim_inactive=1
+dim_strength=0.3
+
+# Optional: per-window opt-out
+windowrule=nodim:1,appid:mpv
+```
+
+## Auto-dump JSON state (NoirWM)
+
+Push compositor state to `/tmp` on every relevant change, so external UIs read via inotify (zero polling). See [Auto-dump JSON](/docs/configuration/auto-dump) for the full schema.
+
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| `auto_dump_clients` | `0` | Re-emit `/tmp/noir_clients.json` on every relevant client state change. |
+| `auto_dump_marks` | `0` | Re-emit `/tmp/noir_marks.json` on every mark mutation. |
+
+```ini
+auto_dump_clients=1
+auto_dump_marks=1
+```

@@ -356,7 +356,11 @@ int32_t killclient(const Arg *arg) {
 		return 0;
 	c = selmon->sel;
 	if (c) {
-		pending_kill_client(c);
+		/* killclient,force sends SIGKILL directly for hung Wine/X11 apps. */
+		if (arg && arg->v && strcmp(arg->v, "force") == 0)
+			pending_force_kill_client(c);
+		else
+			pending_kill_client(c);
 	}
 	return 0;
 }
@@ -855,7 +859,7 @@ int32_t spawn_shell(const Arg *arg) {
 
 		// if execlp fails, we should not reach here
 		wlr_log(WLR_DEBUG,
-				"mango: failed to execute command '%s' with shell: %s\n",
+				"noir: failed to execute command '%s' with shell: %s\n",
 				arg->v, strerror(errno));
 		_exit(EXIT_FAILURE);
 	}
@@ -895,7 +899,7 @@ int32_t spawn(const Arg *arg) {
 		execvp(argv[0], argv);
 
 		// 4. execvp 失败时：打印错误并直接退出（避免 coredump）
-		wlr_log(WLR_DEBUG, "mango: execvp '%s' failed: %s\n", argv[0],
+		wlr_log(WLR_DEBUG, "noir: execvp '%s' failed: %s\n", argv[0],
 				strerror(errno));
 		_exit(EXIT_FAILURE); // 使用 _exit 避免缓冲区刷新等操作
 	}
@@ -979,8 +983,8 @@ int32_t switch_keyboard_layout(const Arg *arg) {
 	return 0;
 }
 
-int32_t switch_layout(const Arg *arg) {
-
+/* dir = +1 cycles forward, -1 backward. Used by switch_layout / switch_layout_prev. */
+static int32_t switch_layout_dir(int dir) {
 	int32_t jk, ji;
 	char *target_layout_name = NULL;
 	uint32_t len;
@@ -990,30 +994,26 @@ int32_t switch_layout(const Arg *arg) {
 
 	if (config.circle_layout_count != 0) {
 		for (jk = 0; jk < config.circle_layout_count; jk++) {
-
 			len = MAX(
 				strlen(config.circle_layout[jk]),
 				strlen(selmon->pertag->ltidxs[selmon->pertag->curtag]->name));
-
 			if (strncmp(config.circle_layout[jk],
 						selmon->pertag->ltidxs[selmon->pertag->curtag]->name,
 						len) == 0) {
-				target_layout_name = jk == config.circle_layout_count - 1
-										 ? config.circle_layout[0]
-										 : config.circle_layout[jk + 1];
+				int32_t next = (jk + dir + config.circle_layout_count) %
+							   config.circle_layout_count;
+				target_layout_name = config.circle_layout[next];
 				break;
 			}
 		}
 
-		if (!target_layout_name) {
+		if (!target_layout_name)
 			target_layout_name = config.circle_layout[0];
-		}
 
 		for (ji = 0; ji < LENGTH(layouts); ji++) {
 			len = MAX(strlen(layouts[ji].name), strlen(target_layout_name));
 			if (strncmp(layouts[ji].name, target_layout_name, len) == 0) {
 				selmon->pertag->ltidxs[selmon->pertag->curtag] = &layouts[ji];
-
 				break;
 			}
 		}
@@ -1026,8 +1026,8 @@ int32_t switch_layout(const Arg *arg) {
 	for (jk = 0; jk < LENGTH(layouts); jk++) {
 		if (strcmp(layouts[jk].name,
 				   selmon->pertag->ltidxs[selmon->pertag->curtag]->name) == 0) {
-			selmon->pertag->ltidxs[selmon->pertag->curtag] =
-				jk == LENGTH(layouts) - 1 ? &layouts[0] : &layouts[jk + 1];
+			int32_t next = (jk + dir + LENGTH(layouts)) % LENGTH(layouts);
+			selmon->pertag->ltidxs[selmon->pertag->curtag] = &layouts[next];
 			clear_fullscreen_and_maximized_state(selmon);
 			arrange(selmon, false, false);
 			printstatus();
@@ -1035,6 +1035,14 @@ int32_t switch_layout(const Arg *arg) {
 		}
 	}
 	return 0;
+}
+
+int32_t switch_layout(const Arg *arg) {
+	return switch_layout_dir(+1);
+}
+
+int32_t switch_layout_prev(const Arg *arg) {
+	return switch_layout_dir(-1);
 }
 
 int32_t switch_proportion_preset(const Arg *arg) {
@@ -1201,28 +1209,48 @@ int32_t tagsilent(const Arg *arg) {
 	return 0;
 }
 
-int32_t tagtoleft(const Arg *arg) {
+/* Move the focused client to the tag left or right of the current one, with
+ * wrap-around (tag 1→9 going left, tag 9→1 going right). Silent variants
+ * skip the auto-focus to the moved client. */
+static int32_t tagtoside_general(const Arg *arg, bool silent, bool left) {
 	if (!selmon)
 		return 0;
+	if (!selmon->sel ||
+		__builtin_popcount(selmon->tagset[selmon->seltags] & TAGMASK) != 1)
+		return 0;
 
-	if (selmon->sel != NULL &&
-		__builtin_popcount(selmon->tagset[selmon->seltags] & TAGMASK) == 1 &&
-		selmon->tagset[selmon->seltags] > 1) {
-		tag(&(Arg){.ui = selmon->tagset[selmon->seltags] >> 1, .i = arg->i});
+	uint32_t target = selmon->tagset[selmon->seltags];
+	if (left) {
+		if (target & 1)
+			target |= 1 << LENGTH(tags); /* wrap 1 → 9 */
+		target >>= 1;
+	} else {
+		target <<= 1;
+		if (target & (1 << LENGTH(tags)))
+			target |= 1; /* wrap 9 → 1 */
 	}
+
+	if (silent)
+		tagsilent(&(Arg){.ui = target, .i = arg->i});
+	else
+		tag(&(Arg){.ui = target, .i = arg->i});
 	return 0;
 }
 
-int32_t tagtoright(const Arg *arg) {
-	if (!selmon)
-		return 0;
+int32_t tagtoleft(const Arg *arg) {
+	return tagtoside_general(arg, false, true);
+}
 
-	if (selmon->sel != NULL &&
-		__builtin_popcount(selmon->tagset[selmon->seltags] & TAGMASK) == 1 &&
-		selmon->tagset[selmon->seltags] & (TAGMASK >> 1)) {
-		tag(&(Arg){.ui = selmon->tagset[selmon->seltags] << 1, .i = arg->i});
-	}
-	return 0;
+int32_t tagtoleftsilent(const Arg *arg) {
+	return tagtoside_general(arg, true, true);
+}
+
+int32_t tagtoright(const Arg *arg) {
+	return tagtoside_general(arg, false, false);
+}
+
+int32_t tagtorightsilent(const Arg *arg) {
+	return tagtoside_general(arg, true, false);
 }
 
 int32_t toggle_named_scratchpad(const Arg *arg) {
@@ -1465,19 +1493,18 @@ int32_t viewtoleft(const Arg *arg) {
 	if (!selmon)
 		return 0;
 
-	uint32_t target = selmon->tagset[selmon->seltags];
-
 	if (selmon->isoverview || selmon->pertag->curtag == 0) {
 		return 0;
 	}
 
+	uint32_t target = selmon->tagset[selmon->seltags];
+
+	/* Wrap tag 1 around to tag 9 going left (upstream PR #858). */
+	if (target & 1)
+		target |= 1 << LENGTH(tags);
 	target >>= 1;
 
-	if (target == 0) {
-		return 0;
-	}
-
-	if (!selmon || (target) == selmon->tagset[selmon->seltags])
+	if (target == 0 || target == selmon->tagset[selmon->seltags])
 		return 0;
 
 	view(&(Arg){.ui = target & TAGMASK, .i = arg->i}, true);
@@ -1494,11 +1521,14 @@ int32_t viewtoright(const Arg *arg) {
 	uint32_t target = selmon->tagset[selmon->seltags];
 	target <<= 1;
 
-	if (!selmon || (target) == selmon->tagset[selmon->seltags])
+	/* Wrap tag 9 around to tag 1 going right (upstream PR #858). */
+	if (target & (1 << LENGTH(tags)))
+		target |= 1;
+
+	if (target == selmon->tagset[selmon->seltags])
 		return 0;
-	if (!(target & TAGMASK)) {
-		return 0;
-	}
+	if (!(target & TAGMASK))
+		target = 1;
 
 	view(&(Arg){.ui = target & TAGMASK, .i = arg->i}, true);
 	return 0;
@@ -1915,13 +1945,14 @@ static void json_escape_string(FILE *f, const char *s) {
 	fputc('"', f);
 }
 
-int32_t dumpclients(const Arg *arg) {
-	const char *filepath = arg->v;
+/* Core dump used by both the dispatcher and the auto-write hook. */
+static void dumpclients_to_path(const char *filepath) {
 	if (!filepath || filepath[0] == '\0')
-		filepath = "/tmp/mango_clients.json";
+		filepath = "/tmp/noir_clients.json";
 
 	FILE *f = fopen(filepath, "w");
-	if (!f) return 0;
+	if (!f)
+		return;
 
 	Client *c;
 	int first = 1;
@@ -1930,6 +1961,8 @@ int32_t dumpclients(const Arg *arg) {
 		if (!first) fprintf(f, ",");
 		fprintf(f, "{\"appid\":");
 		json_escape_string(f, client_get_appid(c));
+		fprintf(f, ",\"icon\":");
+		json_escape_string(f, (c->icon && c->icon->name) ? c->icon->name : "");
 		fprintf(f, ",\"title\":");
 		json_escape_string(f, client_get_title(c));
 		fprintf(f, ",\"tags\":%u", c->tags);
@@ -1945,6 +1978,18 @@ int32_t dumpclients(const Arg *arg) {
 	}
 	fprintf(f, "]\n");
 	fclose(f);
+}
+
+int32_t dumpclients(const Arg *arg) {
+	dumpclients_to_path(arg->v);
 	return 0;
+}
+
+/* Called from event handlers to push a fresh JSON when the config flag is on.
+ * Quickshell consumers use FileView { watchChanges: true } to react via inotify
+ * — no polling. */
+static inline void auto_dump_clients_maybe(void) {
+	if (config.auto_dump_clients)
+		dumpclients_to_path("/tmp/noir_clients.json");
 }
 

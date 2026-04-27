@@ -14,10 +14,10 @@ void vertical_tile(Monitor *m) {
 	if (n == 0)
 		return;
 
-	int32_t cur_gapih = enablegaps ? m->gappih : 0;
-	int32_t cur_gapiv = enablegaps ? m->gappiv : 0;
-	int32_t cur_gapoh = enablegaps ? m->gappoh : 0;
-	int32_t cur_gapov = enablegaps ? m->gappov : 0;
+	int32_t cur_gapih = enablegaps ? pertag_gappih(m) : 0;
+	int32_t cur_gapiv = enablegaps ? pertag_gappiv(m) : 0;
+	int32_t cur_gapoh = enablegaps ? pertag_gappoh(m) : 0;
+	int32_t cur_gapov = enablegaps ? pertag_gappov(m) : 0;
 
 	cur_gapih =
 		config.smartgaps && m->visible_tiling_clients == 1 ? 0 : cur_gapih;
@@ -116,9 +116,9 @@ void vertical_deck(Monitor *m) {
 	float mfact;
 	uint32_t nmasters = m->pertag->nmasters[m->pertag->curtag];
 
-	int32_t cur_gappiv = enablegaps ? m->gappiv : 0;
-	int32_t cur_gappoh = enablegaps ? m->gappoh : 0;
-	int32_t cur_gappov = enablegaps ? m->gappov : 0;
+	int32_t cur_gappiv = enablegaps ? pertag_gappiv(m) : 0;
+	int32_t cur_gappoh = enablegaps ? pertag_gappoh(m) : 0;
+	int32_t cur_gappov = enablegaps ? pertag_gappov(m) : 0;
 
 	cur_gappiv =
 		config.smartgaps && m->visible_tiling_clients == 1 ? 0 : cur_gappiv;
@@ -178,9 +178,9 @@ void vertical_deck(Monitor *m) {
 
 void vertical_scroll_adjust_fullandmax(Client *c, struct wlr_box *target_geom) {
 	Monitor *m = c->mon;
-	int32_t cur_gappiv = enablegaps ? m->gappiv : 0;
-	int32_t cur_gappov = enablegaps ? m->gappov : 0;
-	int32_t cur_gappoh = enablegaps ? m->gappoh : 0;
+	int32_t cur_gappiv = enablegaps ? pertag_gappiv(m) : 0;
+	int32_t cur_gappov = enablegaps ? pertag_gappov(m) : 0;
+	int32_t cur_gappoh = enablegaps ? pertag_gappoh(m) : 0;
 
 	cur_gappiv = config.smartgaps && m->visible_scroll_tiling_clients == 1
 					 ? 0
@@ -281,10 +281,10 @@ void vertical_scroller(Monitor *m) {
 	int32_t focus_client_index = 0;
 	bool need_scroller = false;
 	bool over_overspread_to_up = false;
-	int32_t cur_gappiv = enablegaps ? m->gappiv : 0;
-	int32_t cur_gappov = enablegaps ? m->gappov : 0;
-	int32_t cur_gappoh = enablegaps ? m->gappoh : 0;
-	int32_t cur_gappih = enablegaps ? m->gappih : 0;
+	int32_t cur_gappiv = enablegaps ? pertag_gappiv(m) : 0;
+	int32_t cur_gappov = enablegaps ? pertag_gappov(m) : 0;
+	int32_t cur_gappoh = enablegaps ? pertag_gappoh(m) : 0;
+	int32_t cur_gappih = enablegaps ? pertag_gappih(m) : 0;
 
 	cur_gappiv = config.smartgaps && m->visible_scroll_tiling_clients == 1
 					 ? 0
@@ -501,9 +501,9 @@ void vertical_grid(Monitor *m) {
 	int32_t rows, cols, overrows;
 	Client *c = NULL;
 	int32_t target_gappo =
-		enablegaps ? m->isoverview ? config.overviewgappo : config.gappov : 0;
+		enablegaps ? m->isoverview ? config.overviewgappo : pertag_gappov(m) : 0;
 	int32_t target_gappi =
-		enablegaps ? m->isoverview ? config.overviewgappi : config.gappiv : 0;
+		enablegaps ? m->isoverview ? config.overviewgappi : pertag_gappiv(m) : 0;
 	float single_width_ratio = m->isoverview ? 0.7 : 0.9;
 	float single_height_ratio = m->isoverview ? 0.8 : 0.9;
 

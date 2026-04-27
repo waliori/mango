@@ -1,87 +1,89 @@
 ---
 title: Basic Configuration
-description: Learn how to configure mangowm files, environment variables, and autostart scripts.
+description: Configure NoirWM via config files, environment variables, and autostart scripts.
 ---
 
-## Configuration File
+## Configuration file
 
-mangowm uses a simple configuration file format. By default, it looks for a configuration file in `~/.config/mango/`.
+NoirWM uses a simple plain-text config format. By default it looks for `~/.config/noir/config.conf`.
 
-1. **Locate Default Config**
+1. **Locate the default config**
 
-   A fallback configuration is provided at `/etc/mango/config.conf`. You can use this as a reference.
+   A fallback configuration is installed at `/etc/noir/config.conf`. Use it as a reference.
 
-2. **Create User Config**
-
-   Copy the default config to your local config directory to start customizing.
+2. **Create your user config**
 
    ```bash
-   mkdir -p ~/.config/mango
-   cp /etc/mango/config.conf ~/.config/mango/config.conf
+   mkdir -p ~/.config/noir
+   cp /etc/noir/config.conf ~/.config/noir/config.conf
    ```
 
-3. **Launch with Custom Config (Optional)**
-
-   If you prefer to keep your config elsewhere, you can launch mango with the `-c` flag.
+3. **Or launch with a custom config (optional)**
 
    ```bash
-   mango -c /path/to/your_config.conf
+   noir -c /path/to/your_config.conf
    ```
 
-### Sub-Configuration
+### Sub-configuration
 
-To keep your configuration organized, you can split it into multiple files and include them using the `source` keyword.
+Split the config into multiple files using `source`:
 
 ```ini
 # Import keybindings from a separate file
-source=~/.config/mango/bind.conf
+source=~/.config/noir/binds.conf
 
-# Relative paths work too
+# Relative paths work
 source=./theme.conf
 
 # Optional: ignore if file doesn't exist (useful for shared configs)
-source-optional=~/.config/mango/optional.conf
+source-optional=~/.config/noir/optional.conf
 ```
 
-### Validate Configuration
+### Validate configuration
 
-You can check your configuration for errors without starting mangowm:
+Check for parse errors without starting noir:
 
 ```bash
-mango -c /path/to/config.conf -p
+noir -c /path/to/config.conf -p
 ```
 
 Use with `source-optional` for shared configs across different setups.
 
-## Environment Variables
+## Environment variables
 
-You can define environment variables directly within your config file. These are set before the window manager fully initializes.
+You can define environment variables directly in the config file. They're set before the window manager fully initializes.
 
-> **Warning:** Environment variables defined here will be **reset** every time you reload the configuration.
+> **Warning:** Environment variables defined here are **reset** every time you reload the configuration.
 
 ```ini
 env=QT_IM_MODULES,wayland;fcitx
 env=XMODIFIERS,@im=fcitx
+env=XDG_SESSION_DESKTOP,noir
 ```
 
 ## Autostart
 
-mangowm can automatically run commands or scripts upon startup. There are two modes for execution:
+NoirWM can run commands or scripts on startup. Two execution modes:
 
-| Command | Behavior | Usage Case |
+| Command | Behavior | Use case |
 | :--- | :--- | :--- |
-| `exec-once` | Runs **only once** when mangowm starts. | Status bars, Wallpapers, Notification daemons |
-| `exec` | Runs **every time** the config is reloaded. | Scripts that need to refresh settings |
+| `exec-once` | Runs **only once** when noir starts. | Status bars, wallpapers, notification daemons. |
+| `exec` | Runs **every time** the config is reloaded. | Scripts that need to refresh settings. |
+| `exec-shutdown` | Runs once on noir exit. | Cleanup notifications, cache flushes. |
 
-### Example Setup
+### Example
 
 ```ini
-# Start the status bar once
+# Status bar (once)
 exec-once=waybar
 
-# Set wallpaper
-exec-once=swaybg -i ~/.config/mango/wallpaper/room.png
+# Wallpaper
+exec-once=swww-daemon
+exec-once=swww img ~/.config/noir/wallpaper/room.png
 
 # Reload a custom script on config change
-exec=bash ~/.config/mango/reload-settings.sh
+exec=bash ~/.config/noir/reload-settings.sh
+
+# Notify on shutdown
+exec-shutdown=notify-send "noir" "session ended"
 ```

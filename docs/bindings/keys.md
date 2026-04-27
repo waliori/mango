@@ -156,7 +156,7 @@ bindr=Super,Super_L,spawn,rofi -show run
 | `spawn_shell` | `cmd` | Execute shell command (supports pipes `\|`). |
 | `spawn_on_empty` | `cmd,tagnumber` | Open command on empty tag. |
 | `reload_config` | - | Hot-reload configuration. |
-| `quit` | - | Exit mangowm. |
+| `quit` | - | Exit noir. |
 | `toggleoverview` | - | Toggle overview mode. |
 | `create_virtual_output` | - | Create a headless monitor (for VNC/Sunshine). |
 | `destroy_all_virtual_output` | - | Destroy all virtual monitors. |
@@ -213,3 +213,41 @@ bind=NONE,XF86AudioPlay,spawn,playerctl play-pause
 | `smartresizewin` | `left/right/up/down` | Resize floating window by snap distance. |
 | `movewin` | `(x,y)` | Move floating window. |
 | `resizewin` | `(width,height)` | Resize window. |
+
+### Marks (NoirWM)
+
+Vim-style window marks. See [Marks](/docs/window-management/marks) for full usage.
+
+| Command | Param | Description |
+| :--- | :--- | :--- |
+| `mark` | `name` | Bind the focused window to a named mark. |
+| `focus_mark` | `name` | Focus the marked window (cursor warps onto it). |
+| `focus_mark_or_set` | `name` | Save spot if mark is empty, jump if set. |
+| `swap_with_mark` | `name` | Swap the focused window's slot with the marked window's slot. |
+
+### State dump (NoirWM)
+
+| Command | Param | Description |
+| :--- | :--- | :--- |
+| `dumpclients` | `[path]` | Write client JSON to `path` (default `/tmp/noir_clients.json`). |
+| `dumpmarks` | `[path]` | Write marks JSON to `path` (default `/tmp/noir_marks.json`). |
+
+For inotify-driven external UIs, prefer `auto_dump_clients=1` / `auto_dump_marks=1` in the config — see [Auto-dump JSON](/docs/configuration/auto-dump).
+
+### Silent tag/view variants (NoirWM)
+
+Move/view without forcing focus.
+
+| Command | Param | Description |
+| :--- | :--- | :--- |
+| `tagsilent` | `1-9` | Move window to tag without focusing it. |
+| `tagtoleftsilent` | `[synctag]` | Move window to left tag silently. |
+| `tagtorightsilent` | `[synctag]` | Move window to right tag silently. |
+| `viewtoleftsilent` | `[synctag]` | View previous tag without re-focusing. |
+| `viewtorightsilent` | `[synctag]` | View next tag without re-focusing. |
+
+### Layout cycling extras (NoirWM)
+
+| Command | Param | Description |
+| :--- | :--- | :--- |
+| `switch_layout_prev` | - | Reverse-cycle layouts (companion to `switch_layout`). |

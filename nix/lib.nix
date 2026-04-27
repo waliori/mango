@@ -15,13 +15,13 @@ let
     ;
 
   /**
-    Convert a structured Nix attribute set into Mango's configuration format.
+    Convert a structured Nix attribute set into NoirWM's configuration format.
 
-    This function takes a nested attribute set and converts it into Mango-compatible
+    This function takes a nested attribute set and converts it into NoirWM-compatible
     configuration syntax, supporting top, bottom, and regular command sections.
 
     Commands are flattened using the `flattenAttrs` function, and attributes are formatted as
-    `key = value` pairs. Lists are expanded as duplicate keys to match Mango's expected format.
+    `key = value` pairs. Lists are expanded as duplicate keys to match NoirWM's expected format.
 
     Configuration:
 
@@ -32,7 +32,7 @@ let
 
     - The function ensures top commands appear **first** and bottom commands **last**.
     - The generated configuration is a **single string**, suitable for writing to a config file.
-    - Lists are converted into multiple entries, ensuring compatibility with Mango.
+    - Lists are converted into multiple entries, ensuring compatibility with NoirWM.
 
     # Inputs
 
@@ -52,13 +52,13 @@ let
     # Type
 
     ```
-    toMango :: AttrSet -> AttrSet -> String
+    toNoir :: AttrSet -> AttrSet -> String
     ```
 
     # Examples
     :::{.example}
 
-    ## Basic mangowc configuration
+    ## Basic NoirWM configuration
 
     ```nix
     let
@@ -69,7 +69,7 @@ let
         animations = 1;
         animation_duration_open = 400;
       };
-    in lib.toMango {} config
+    in lib.toNoir {} config
     ```
 
     **Output:**
@@ -97,7 +97,7 @@ let
           close = "0.08,0.92,0,1";
         };
       };
-    in lib.toMango {} config
+    in lib.toNoir {} config
     ```
 
     **Output:**
@@ -125,7 +125,7 @@ let
           "id:2,layout_name:scroller"
         ];
       };
-    in lib.toMango {} config
+    in lib.toNoir {} config
     ```
 
     **Output:**
@@ -156,7 +156,7 @@ let
           };
         };
       };
-    in lib.toMango {} config
+    in lib.toNoir {} config
     ```
 
     **Output:**
@@ -172,14 +172,14 @@ let
 
     :::
   */
-  toMango =
+  toNoir =
     {
       topCommandsPrefixes ? [ ],
       bottomCommandsPrefixes ? [ ],
     }:
     attrs:
     let
-      toMango' =
+      toNoir' =
         attrs:
         let
           # Specially configured `toKeyValue` generator with support for duplicate keys
@@ -235,7 +235,7 @@ let
         ]
         + keymodeBlocks;
     in
-    toMango' attrs;
+    toNoir' attrs;
 
   /**
     Flatten a nested attribute set into a flat attribute set, using a custom key separator function.
@@ -308,5 +308,5 @@ let
     flattenAttrs' "" attrs;
 in
 {
-  inherit flattenAttrs toMango;
+  inherit flattenAttrs toNoir;
 }

@@ -1,4 +1,4 @@
-project('mango', ['c', 'cpp'],
+project('noirwm', ['c', 'cpp'],
   version : '0.12.8',
 )
 
@@ -38,7 +38,10 @@ xkbcommon_dep = dependency('xkbcommon')
 libinput_dep = dependency('libinput',version: '>=1.27.1')
 libwayland_client_dep = dependency('wayland-client')
 pcre2_dep = dependency('libpcre2-8')
-libscenefx_dep = dependency('scenefx-0.4',version: '>=0.4.1')
+# scenefx is vendored at subprojects/scenefx/ — see VENDOR.md there.
+libscenefx_dep = dependency('scenefx-0.4',
+  version: '>=0.4.1',
+  fallback: ['scenefx', 'scenefx'])
 
 
 # 获取版本信息
@@ -94,8 +97,8 @@ if get_option('asan')
   link_args += '-fsanitize=address'
 endif
 
-executable('mango',
-  'src/mango.c',
+executable('noir',
+  'src/noir.c',
   'src/common/util.c',
   'src/ext-protocol/wlr_ext_workspace_v1.c',
   wayland_sources,
@@ -148,6 +151,6 @@ executable('mmsg',
 
 desktop_install_dir = join_paths(prefix, 'share/wayland-sessions')
 portal_install_dir = join_paths(prefix, 'share/xdg-desktop-portal')
-install_data('assets/mango.desktop', install_dir : desktop_install_dir)
-install_data('assets/mango-portals.conf', install_dir : portal_install_dir)
-install_data('assets/config.conf', install_dir : join_paths(sysconfdir, 'mango'))
+install_data('assets/noir.desktop', install_dir : desktop_install_dir)
+install_data('assets/noir-portals.conf', install_dir : portal_install_dir)
+install_data('assets/config.conf', install_dir : join_paths(sysconfdir, 'noir'))

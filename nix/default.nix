@@ -1,6 +1,8 @@
 {
   lib,
   libX11,
+  libdrm,
+  libgbm,
   libinput,
   libxcb,
   libxkbcommon,
@@ -15,19 +17,26 @@
   xwayland,
   meson,
   ninja,
-  scenefx,
   wlroots_0_19,
   libGL,
   enableXWayland ? true,
   debug ? false,
 }:
 stdenv.mkDerivation {
-  pname = "mango";
+  pname = "noirwm";
   version = "nightly";
 
   src = builtins.path {
     path = ../.;
     name = "source";
+    # Keep local `meson setup build`/`result`/caches out of the sandbox —
+    # a pre-existing build/ dir makes mesonConfigurePhase refuse flags.
+    filter = path: type:
+      let base = baseNameOf path;
+      in !(type == "directory" && (base == "build" ||
+                                   base == "result" ||
+                                   base == ".cache" ||
+                                   base == ".git"));
   };
 
   mesonFlags = [
@@ -44,6 +53,8 @@ stdenv.mkDerivation {
 
   buildInputs =
     [
+      libdrm
+      libgbm
       libinput
       libxcb
       libxkbcommon
@@ -52,7 +63,6 @@ stdenv.mkDerivation {
       wayland
       wayland-protocols
       wlroots_0_19
-      scenefx
       libGL
     ]
     ++ lib.optionals enableXWayland [
@@ -62,13 +72,13 @@ stdenv.mkDerivation {
     ];
 
   passthru = {
-    providedSessions = ["mango"];
+    providedSessions = ["noir"];
   };
 
   meta = {
-    mainProgram = "mango";
-    description = "Practical and Powerful wayland compositor (dwm but wayland)";
-    homepage = "https://github.com/mangowm/mango";
+    mainProgram = "noir";
+    description = "NoirWM — Wayland compositor tuned for external shells (fork of MangoWC)";
+    homepage = "https://github.com/waliori/noirwm";
     license = lib.licenses.gpl3Plus;
     maintainers = [];
     platforms = lib.platforms.unix;

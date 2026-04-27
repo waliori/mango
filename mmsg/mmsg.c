@@ -3,6 +3,7 @@
 #include "dynarr.h"
 #include <ctype.h>
 #include <poll.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -197,6 +198,17 @@ static void dwl_ipc_output_appid(void *data,
 	if (output_name)
 		printf("%s ", output_name);
 	printf("appid %s\n", appid);
+}
+
+static void dwl_ipc_output_icon(void *data,
+								struct zdwl_ipc_output_v2 *dwl_ipc_output,
+								const char *icon) {
+	if (!(cflag && mode & GET))
+		return;
+	char *output_name = data;
+	if (output_name)
+		printf("%s ", output_name);
+	printf("icon %s\n", icon);
 }
 
 static void dwl_ipc_output_x(void *data,
@@ -416,6 +428,7 @@ static const struct zdwl_ipc_output_v2_listener dwl_ipc_output_listener = {
 	.layout = dwl_ipc_output_layout,
 	.title = dwl_ipc_output_title,
 	.appid = dwl_ipc_output_appid,
+	.icon = dwl_ipc_output_icon,
 	.layout_symbol = dwl_ipc_output_layout_symbol,
 	.fullscreen = dwl_ipc_output_fullscreen,
 	.floating = dwl_ipc_output_floating,
@@ -500,7 +513,7 @@ static const struct wl_registry_listener registry_listener = {
 
 static void usage(void) {
 	fprintf(stderr,
-			"mmsg - MangoWM IPC\n"
+			"mmsg - NoirWM IPC\n"
 			"\n"
 			"SYNOPSIS:\n"
 			"\tmmsg [-OTLq]\n"
@@ -517,7 +530,7 @@ static void usage(void) {
 			"\t-O           Get all output (monitor) information\n"
 			"\t-T           Get number of tags\n"
 			"\t-L           Get all available layouts\n"
-			"\t-q           Quit mango\n"
+			"\t-q           Quit noir\n"
 			"\t-o <output>  Select output (monitor)\n"
 			"\n"
 			"GET OPTIONS (used with -g or -w):\n"
@@ -546,6 +559,24 @@ static void usage(void) {
 }
 
 int32_t main(int32_t argc, char *argv[]) {
+	/* Don't run mmsg dispatches on a non-noir compositor — the Wayland
+	 * surface/protocol we bind to won't be there and ipc will segfault.
+	 * Some noir setups set XDG_CURRENT_DESKTOP to 'wlroots' (so GTK/Qt
+	 * apply wlroots-generic behaviour), in which case XDG_SESSION_DESKTOP
+	 * is the real session identifier. Accept a match on either variable. */
+	const char *xdg_current = getenv("XDG_CURRENT_DESKTOP");
+	const char *xdg_session = getenv("XDG_SESSION_DESKTOP");
+	bool in_noir = (xdg_current && strstr(xdg_current, "noir")) ||
+					(xdg_session && strstr(xdg_session, "noir"));
+	if (!in_noir) {
+		fprintf(stderr,
+				"mmsg: neither XDG_CURRENT_DESKTOP nor XDG_SESSION_DESKTOP "
+				"names 'noir' (current='%s', session='%s'); refusing to run\n",
+				xdg_current ? xdg_current : "(unset)",
+				xdg_session ? xdg_session : "(unset)");
+		exit(EXIT_FAILURE);
+	}
+
 	ARGBEGIN {
 	case 'q':
 		qflag = 1;

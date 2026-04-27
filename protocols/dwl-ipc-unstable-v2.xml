@@ -19,7 +19,7 @@ I would probably just submit raphi's patchset but I don't think that would be po
       reset.
   </description>
 
-  <interface name="zdwl_ipc_manager_v2" version="2">
+  <interface name="zdwl_ipc_manager_v2" version="3">
     <description summary="manage dwl state">
       This interface is exposed as a global in wl_registry.
 
@@ -60,7 +60,7 @@ I would probably just submit raphi's patchset but I don't think that would be po
     </event>
   </interface>
 
-  <interface name="zdwl_ipc_output_v2" version="2">
+  <interface name="zdwl_ipc_output_v2" version="3">
     <description summary="control dwl output">
       Observe and control a dwl output.
 
@@ -164,7 +164,7 @@ I would probably just submit raphi's patchset but I don't think that would be po
     </request>
 
     <request name="quit" since="2">
-      <description summary="Quit mango">This request allows clients to instruct the compositor to quit mango.</description>
+      <description summary="Quit noir">This request allows clients to instruct the compositor to quit noir.</description>
     </request>
 
     <request name="dispatch" since="2">
@@ -246,6 +246,16 @@ I would probably just submit raphi's patchset but I don't think that would be po
         scale factor of monitor.
       </description>
       <arg name="scalefactor" type="uint" summary="scale factor of monitor."/>
+    </event>
+
+    <!-- Version 3 -->
+    <event name="icon" since="3">
+      <description summary="Update the focused client's icon name.">
+        Indicates the freedesktop icon name set by the focused client via
+        xdg-toplevel-icon-v1. Empty string when the client did not provide a name
+        (the consumer should fall back to its own app-id-based lookup).
+      </description>
+      <arg name="icon" type="string" summary="The icon name (may be empty)."/>
     </event>
 
   </interface>

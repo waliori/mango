@@ -33,6 +33,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_alpha_modifier_v1.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_content_type_v1.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_cursor_shape_v1.h>
 #include <wlr/types/wlr_data_control_v1.h>
@@ -66,6 +67,7 @@
 #include <wlr/types/wlr_primary_selection_v1.h>
 #include <wlr/types/wlr_relative_pointer_v1.h>
 #include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_security_context_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_session_lock_v1.h>
@@ -83,6 +85,7 @@
 #include <wlr/types/wlr_xdg_foreign_v2.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_toplevel_icon_v1.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include <wordexp.h>
@@ -315,6 +318,7 @@ struct Client {
 	struct wlr_scene_tree *scene;
 	struct wlr_scene_rect *border; /* top, bottom, left, right */
 	struct wlr_scene_shadow *shadow;
+	struct wlr_scene_rect *dim; /* darken overlay when unfocused */
 	struct wlr_scene_tree *scene_surface;
 	struct wl_list link;
 	struct wl_list flink;
@@ -345,6 +349,8 @@ struct Client {
 	bool dirty;
 	uint32_t configure_serial;
 	struct wlr_foreign_toplevel_handle_v1 *foreign_toplevel;
+	struct wlr_ext_foreign_toplevel_handle_v1 *ext_foreign_toplevel;
+	struct wlr_xdg_toplevel_icon_v1 *icon;
 	int32_t isfloating, isurgent, isfullscreen, isfakefullscreen,
 		need_float_size_reduce, isminimized, isoverlay, isnosizehint,
 		ignore_maximize, ignore_minimize, indleinhibit_when_focus;
@@ -400,6 +406,8 @@ struct Client {
 	bool scratchpad_switching_mon;
 	bool fake_no_border;
 	int32_t nofocus;
+	int32_t stayfocused;
+	int32_t nodim;
 	int32_t nofadein;
 	int32_t nofadeout;
 	int32_t no_force_center;
@@ -560,6 +568,7 @@ static void applybounds(
 	Client *c,
 	struct wlr_box *bbox); // 设置边界规则,能让一些窗口拥有比较适合的大小
 static void applyrules(Client *c); // 窗口规则应用,应用config.h中定义的窗口规则
+static void client_change_mon(Client *c, Monitor *m);
 static void arrange(Monitor *m, bool want_animation,
 					bool from_view); // 布局函数,让窗口俺平铺规则移动和重置大小
 static void arrangelayer(Monitor *m, struct wl_list *list,
@@ -687,6 +696,7 @@ static void unmapnotify(struct wl_listener *listener, void *data);
 static void updatemons(struct wl_listener *listener, void *data);
 static void updatetitle(struct wl_listener *listener, void *data);
 static void urgent(struct wl_listener *listener, void *data);
+void handle_toplevel_icon_set(struct wl_listener *listener, void *data);
 static void view(const Arg *arg, bool want_animation);
 
 static void handlesig(int32_t signo);
@@ -751,6 +761,7 @@ static bool check_hit_no_border(Client *c);
 static void reset_keyboard_layout(void);
 static void client_update_oldmonname_record(Client *c, Monitor *m);
 static void pending_kill_client(Client *c);
+static void pending_force_kill_client(Client *c);
 static uint32_t get_tags_first_tag_num(uint32_t source_tags);
 static void set_layer_open_animaiton(LayerSurface *l, struct wlr_box geo);
 static void init_fadeout_layers(LayerSurface *l);
@@ -817,6 +828,9 @@ static void client_pending_minimized_state(Client *c, int32_t isminimized);
 /* variables */
 static const char broken[] = "broken";
 static pid_t child_pid = -1;
+/* Set at end of setup(); used by windowrule atstartup:1 to only apply
+ * during the first 60 seconds after the compositor starts. */
+static uint32_t startup_time = 0;
 static int32_t locked;
 static uint32_t locked_mods = 0;
 static void *exclusive_focus;
@@ -940,9 +954,33 @@ struct Pertag {
 	int32_t no_hide[LENGTH(tags) + 1];	/* no_hide per tag */
 	int32_t no_render_border[LENGTH(tags) + 1]; /* no_render_border per tag */
 	int32_t open_as_floating[LENGTH(tags) + 1]; /* open_as_floating per tag */
+	/* per-tag gap overrides, -1 means fall back to config.gapp* */
+	int32_t gappih[LENGTH(tags) + 1];
+	int32_t gappiv[LENGTH(tags) + 1];
+	int32_t gappoh[LENGTH(tags) + 1];
+	int32_t gappov[LENGTH(tags) + 1];
 	const Layout
 		*ltidxs[LENGTH(tags) + 1]; /* matrix of tags and layouts indexes  */
 };
+
+/* Per-tag gap accessors: a tagrule override wins; else fall back to the
+ * monitor's live gap setting (config default or setgaps-modified). */
+static inline int32_t pertag_gappih(Monitor *m) {
+	int32_t v = m->pertag->gappih[m->pertag->curtag];
+	return v >= 0 ? v : m->gappih;
+}
+static inline int32_t pertag_gappiv(Monitor *m) {
+	int32_t v = m->pertag->gappiv[m->pertag->curtag];
+	return v >= 0 ? v : m->gappiv;
+}
+static inline int32_t pertag_gappoh(Monitor *m) {
+	int32_t v = m->pertag->gappoh[m->pertag->curtag];
+	return v >= 0 ? v : m->gappoh;
+}
+static inline int32_t pertag_gappov(Monitor *m) {
+	int32_t v = m->pertag->gappov[m->pertag->curtag];
+	return v >= 0 ? v : m->gappov;
+}
 
 #include "config/parse_config.h"
 
@@ -1010,6 +1048,7 @@ static struct wl_event_source *sync_keymap;
 #include "animation/tag.h"
 #include "dispatch/bind_define.h"
 #include "ext-protocol/all.h"
+#include "dispatch/marks.h"
 #include "fetch/fetch.h"
 #include "layout/arrange.h"
 #include "layout/horizontal.h"
@@ -1154,6 +1193,8 @@ void swallow(Client *c, Client *w) {
 
 	if (w->foreign_toplevel)
 		remove_foreign_topleve(w);
+	if (w->ext_foreign_toplevel)
+		remove_ext_foreign_toplevel(w);
 
 	wlr_scene_node_set_enabled(&w->scene->node, false);
 	wlr_scene_node_set_enabled(&c->scene->node, true);
@@ -1161,6 +1202,8 @@ void swallow(Client *c, Client *w) {
 
 	if (!c->foreign_toplevel && c->mon)
 		add_foreign_toplevel(c);
+	if (!c->ext_foreign_toplevel && c->mon)
+		add_ext_foreign_toplevel(c);
 
 	client_pending_fullscreen_state(c, w->isfullscreen);
 	client_pending_maximized_state(c, w->ismaximizescreen);
@@ -1176,6 +1219,7 @@ bool switch_scratchpad_client_state(Client *c) {
 		c->scratchpad_switching_mon = true;
 		c->mon = selmon;
 		reset_foreign_tolevel(c);
+		sync_ext_foreign_toplevel(c);
 		client_update_oldmonname_record(c, selmon);
 
 		// 根据新monitor调整窗口尺寸
@@ -1352,6 +1396,7 @@ static void apply_rule_properties(Client *c, const ConfigWinRule *r) {
 	APPLY_INT_PROP(c, r, force_tearing);
 	APPLY_INT_PROP(c, r, noswallow);
 	APPLY_INT_PROP(c, r, nofocus);
+	APPLY_INT_PROP(c, r, stayfocused);
 	APPLY_INT_PROP(c, r, nofadein);
 	APPLY_INT_PROP(c, r, nofadeout);
 	APPLY_INT_PROP(c, r, no_force_center);
@@ -1373,6 +1418,7 @@ static void apply_rule_properties(Client *c, const ConfigWinRule *r) {
 	APPLY_INT_PROP(c, r, indleinhibit_when_focus);
 	APPLY_INT_PROP(c, r, isunglobal);
 	APPLY_INT_PROP(c, r, noblur);
+	APPLY_INT_PROP(c, r, nodim);
 	APPLY_INT_PROP(c, r, allow_shortcuts_inhibit);
 
 	APPLY_FLOAT_PROP(c, r, scroller_proportion);
@@ -1482,6 +1528,13 @@ void applyrules(Client *c) {
 		if (!is_window_rule_matches(r, appid, title))
 			continue;
 
+		/* atstartup:1 rules only apply during the first 60s after noir
+		 * setup completes — useful for placing session apps on specific
+		 * tags without affecting later-spawned windows of the same app. */
+		if (r->atstartup > 0 && startup_time &&
+			get_now_in_ms() - startup_time > 60 * 1000)
+			continue;
+
 		// set general properties
 		apply_rule_properties(c, r);
 
@@ -1505,10 +1558,16 @@ void applyrules(Client *c) {
 
 		// set geometry of floating client
 
-		if (r->width > 0)
+		/* windowrule width/height: >1 = pixel value; 0..1 = fraction of the
+		 * monitor's size; 0 (unset) = don't touch. */
+		if (r->width > 1)
 			c->float_geom.width = r->width;
-		if (r->height > 0)
+		else if (r->width > 0)
+			c->float_geom.width = round(mon->m.width * r->width);
+		if (r->height > 1)
 			c->float_geom.height = r->height;
+		else if (r->height > 0)
+			c->float_geom.height = round(mon->m.height * r->height);
 
 		if (r->width > 0 || r->height > 0) {
 			c->iscustomsize = 1;
@@ -2215,6 +2274,23 @@ void checkidleinhibitor(struct wlr_surface *exclude) {
 		}
 	}
 
+	/* Auto-inhibit idle for any visible client that hinted content-type=video
+	 * via content-type-v1. Games don't need this — they emit regular input
+	 * activity. Videos often don't, which is why apps have historically had
+	 * to use idle-inhibit-v1 explicitly; many don't. */
+	if (!inhibited && content_type_manager) {
+		wl_list_for_each(c, &clients, link) {
+			struct wlr_surface *s = client_surface(c);
+			if (!s || !c->mon || !VISIBLEON(c, c->mon))
+				continue;
+			if (wlr_surface_get_content_type_v1(content_type_manager, s) ==
+				WP_CONTENT_TYPE_V1_TYPE_VIDEO) {
+				inhibited = 1;
+				break;
+			}
+		}
+	}
+
 	wlr_idle_notifier_v1_set_inhibited(idle_notifier, inhibited);
 }
 
@@ -2286,6 +2362,7 @@ void cleanuplisteners(void) {
 }
 
 void cleanup(void) {
+	run_exec_shutdown();
 	cleanuplisteners();
 #ifdef XWAYLAND
 	wlr_xwayland_destroy(xwayland);
@@ -2375,6 +2452,7 @@ void closemon(Monitor *m) {
 
 			if (selmon == NULL) {
 				remove_foreign_topleve(c);
+				remove_ext_foreign_toplevel(c);
 				c->mon = NULL;
 			} else {
 				client_change_mon(c, selmon);
@@ -2396,20 +2474,6 @@ static void iter_layer_scene_buffers(struct wlr_scene_buffer *buffer,
 	struct wlr_scene_surface *scene_surface =
 		wlr_scene_surface_try_from_buffer(buffer);
 	if (!scene_surface) {
-		return;
-	}
-
-	// Workaround for scenefx issue #132: blur_ignore_transparent has
-	// broken coord math on rotated outputs. Setting it to false on those
-	// outputs isn't a fix either — blur then leaks through the whole
-	// transparent region of the layer. Cleanest: disable layer blur
-	// entirely on rotated outputs. Unrotated monitors keep full blur.
-	LayerSurface *l = user_data;
-	bool rotated_output = l && l->mon && l->mon->wlr_output &&
-		l->mon->wlr_output->transform != WL_OUTPUT_TRANSFORM_NORMAL;
-
-	if (rotated_output) {
-		wlr_scene_buffer_set_backdrop_blur(buffer, false);
 		return;
 	}
 
@@ -3115,6 +3179,10 @@ void createmon(struct wl_listener *listener, void *data) {
 		m->pertag->nmasters[i] = config.default_nmaster;
 		m->pertag->mfacts[i] = config.default_mfact;
 		m->pertag->ltidxs[i] = &layouts[0];
+		m->pertag->gappih[i] = -1;
+		m->pertag->gappiv[i] = -1;
+		m->pertag->gappoh[i] = -1;
+		m->pertag->gappov[i] = -1;
 	}
 
 	// apply tag rule
@@ -3465,6 +3533,13 @@ void // 0.7 custom
 destroynotify(struct wl_listener *listener, void *data) {
 	/* Called when the xdg_toplevel is destroyed. */
 	Client *c = wl_container_of(listener, c, destroy);
+	if (c->icon) {
+		wlr_xdg_toplevel_icon_v1_unref(c->icon);
+		c->icon = NULL;
+	}
+	if (c->ext_foreign_toplevel)
+		remove_ext_foreign_toplevel(c);
+	mark_drop_client(c);
 	wl_list_remove(&c->destroy.link);
 	wl_list_remove(&c->set_title.link);
 	wl_list_remove(&c->fullscreen.link);
@@ -3538,6 +3613,13 @@ void focusclient(Client *c, int32_t lift) {
 	if (c && c->nofocus)
 		return;
 
+	/* stayfocused windowrule — don't let focus leave a visible stayfocused
+	 * client. Useful for password-manager popups that mustn't lose focus
+	 * when the pointer wanders off. */
+	if (selmon && selmon->sel && selmon->sel != c && selmon->sel->stayfocused &&
+		VISIBLEON(selmon->sel, selmon) && client_surface(selmon->sel)->mapped)
+		return;
+
 	/* Raise client in stacking order if requested */
 	if (c && lift)
 		wlr_scene_node_raise_to_top(&c->scene->node); // 将视图提升到顶层
@@ -3566,9 +3648,14 @@ void focusclient(Client *c, int32_t lift) {
 			last_focus_client != c) {
 			last_focus_client->isfocusing = false;
 			client_set_unfocused_opacity_animation(last_focus_client);
+			if (last_focus_client->dim && config.dim_inactive &&
+				!last_focus_client->nodim)
+				wlr_scene_node_set_enabled(&last_focus_client->dim->node, true);
 		}
 
 		client_set_focused_opacity_animation(c);
+		if (c->dim)
+			wlr_scene_node_set_enabled(&c->dim->node, false);
 
 		// decide whether need to re-arrange
 
@@ -3585,6 +3672,11 @@ void focusclient(Client *c, int32_t lift) {
 
 		// change border color
 		c->isurgent = 0;
+
+		/* A stayfocused client becomes the exclusive_focus so the guards
+		 * above keep it until it unmaps or becomes invisible. */
+		if (c->stayfocused)
+			exclusive_focus = c;
 	}
 
 	// update other monitor focus disappear
@@ -3593,6 +3685,8 @@ void focusclient(Client *c, int32_t lift) {
 			!um->sel->iskilling && um->sel->isfocusing) {
 			um->sel->isfocusing = false;
 			client_set_unfocused_opacity_animation(um->sel);
+			if (um->sel->dim && config.dim_inactive && !um->sel->nodim)
+				wlr_scene_node_set_enabled(&um->sel->dim->node, true);
 		}
 	}
 
@@ -3614,7 +3708,9 @@ void focusclient(Client *c, int32_t lift) {
 			l->layer_surface->current.layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP &&
 			l == exclusive_focus) {
 			return;
-		} else if (w && w == exclusive_focus && client_wants_focus(w)) {
+		} else if (w && w == exclusive_focus &&
+				   (client_wants_focus(w) || w->stayfocused) && w->mon &&
+				   VISIBLEON(w, w->mon) && client_surface(w)->mapped) {
 			return;
 			/* Don't deactivate old_keyboard_focus_surface client if the new
 			 * one wants focus, as this causes issues with winecfg and
@@ -3992,6 +4088,14 @@ void pending_kill_client(Client *c) {
 	client_send_close(c);
 }
 
+/* SIGKILL the client's process directly, bypassing graceful close. Opt-in via
+ * `killclient,force` for hung apps that ignore the close request. */
+void pending_force_kill_client(Client *c) {
+	if (!c || c->pid <= 0)
+		return;
+	kill(c->pid, SIGKILL);
+}
+
 void locksession(struct wl_listener *listener, void *data) {
 	struct wlr_session_lock_v1 *session_lock = data;
 	SessionLock *lock;
@@ -4055,6 +4159,7 @@ void init_client_properties(Client *c) {
 	c->noswallow = 0;
 	c->isterm = 0;
 	c->noblur = 0;
+	c->nodim = 0;
 	c->tearing_hint = 0;
 	c->overview_isfullscreenbak = 0;
 	c->overview_ismaximizescreenbak = 0;
@@ -4090,6 +4195,7 @@ void init_client_properties(Client *c) {
 	c->focused_opacity = config.focused_opacity;
 	c->unfocused_opacity = config.unfocused_opacity;
 	c->nofocus = 0;
+	c->stayfocused = 0;
 	c->nofadein = 0;
 	c->nofadeout = 0;
 	c->no_force_center = 0;
@@ -4202,6 +4308,17 @@ mapnotify(struct wl_listener *listener, void *data) {
 	wlr_scene_node_lower_to_bottom(&c->shadow->node);
 	wlr_scene_node_set_enabled(&c->shadow->node, true);
 
+	/* Dim overlay (Hyprland-style): a semi-opaque black rect on top of the
+	 * client scene. Enabled only while the client is unfocused and
+	 * dim_inactive is on. Created here and sized/toggled later. */
+	c->dim = wlr_scene_rect_create(c->scene, 0, 0,
+								   (float[]){0.0f, 0.0f, 0.0f,
+											 config.dim_strength});
+	wlr_scene_rect_set_corner_radius(c->dim, config.border_radius,
+									 config.border_radius_location_default);
+	wlr_scene_node_raise_to_top(&c->dim->node);
+	wlr_scene_node_set_enabled(&c->dim->node, false);
+
 	if (config.new_is_master && selmon && !is_scroller_layout(selmon))
 		// tile at the top
 		wl_list_insert(&clients, &c->link); // 新窗口是master,头部入栈
@@ -4245,6 +4362,7 @@ mapnotify(struct wl_listener *listener, void *data) {
 	c->is_pending_open_animation = true;
 	resize(c, c->geom, 0);
 	printstatus();
+	auto_dump_clients_maybe();
 }
 
 void maximizenotify(struct wl_listener *listener, void *data) {
@@ -5439,6 +5557,7 @@ void setmon(Client *c, Monitor *m, uint32_t newtags, bool focus) {
 	if (m) {
 		/* Make sure window actually overlaps with the monitor */
 		reset_foreign_tolevel(c);
+		sync_ext_foreign_toplevel(c);
 		resize(c, c->geom, 0);
 		client_reset_mon_tags(c, m, newtags);
 		check_match_tag_floating_rule(c, m);
@@ -5525,7 +5644,7 @@ void handle_print_status(struct wl_listener *listener, void *data) {
 
 void setup(void) {
 
-	setenv("XDG_CURRENT_DESKTOP", "mango", 1);
+	setenv("XDG_CURRENT_DESKTOP", "noir", 1);
 	setenv("_JAVA_AWT_WM_NONREPARENTING", "1", 1);
 
 	parse_config();
@@ -5640,6 +5759,17 @@ void setup(void) {
 	tearing_control = wlr_tearing_control_manager_v1_create(dpy, 1);
 	tearing_new_object.notify = handle_tearing_new_object;
 	wl_signal_add(&tearing_control->events.new_object, &tearing_new_object);
+
+	content_type_manager = wlr_content_type_manager_v1_create(dpy, 1);
+	wlr_security_context_manager_v1_create(dpy);
+
+	struct wlr_xdg_toplevel_icon_manager_v1 *toplevel_icon_mgr =
+		wlr_xdg_toplevel_icon_manager_v1_create(dpy, 1);
+	static struct wl_listener toplevel_icon_set_listener = {
+		.notify = handle_toplevel_icon_set,
+	};
+	wl_signal_add(&toplevel_icon_mgr->events.set_icon,
+		&toplevel_icon_set_listener);
 
 	/* Creates an output layout, which a wlroots utility for working with an
 	 * arrangement of screens in a physical layout. */
@@ -5808,11 +5938,12 @@ void setup(void) {
 		wlr_log(WLR_INFO, "VR will not be available.");
 	}
 
-	wl_global_create(dpy, &zdwl_ipc_manager_v2_interface, 2, NULL,
+	wl_global_create(dpy, &zdwl_ipc_manager_v2_interface, 3, NULL,
 					 dwl_ipc_manager_bind);
 
 	// 创建顶层管理句柄
 	foreign_toplevel_manager = wlr_foreign_toplevel_manager_v1_create(dpy);
+	ext_foreign_toplevel_list = wlr_ext_foreign_toplevel_list_v1_create(dpy, 1);
 	struct wlr_xdg_foreign_registry *foreign_registry =
 		wlr_xdg_foreign_registry_create(dpy);
 	wlr_xdg_foreign_v1_create(dpy, foreign_registry);
@@ -5839,6 +5970,9 @@ void setup(void) {
 	sync_keymap = wl_event_loop_add_timer(wl_display_get_event_loop(dpy),
 										  synckeymap, NULL);
 #endif
+
+	/* Record setup completion for the atstartup windowrule. */
+	startup_time = get_now_in_ms();
 }
 
 void startdrag(struct wl_listener *listener, void *data) {
@@ -6083,6 +6217,10 @@ void unmapnotify(struct wl_listener *listener, void *data) {
 		}
 	}
 
+	/* Release the stayfocused lock when the window goes away. */
+	if (c->stayfocused && c == exclusive_focus)
+		exclusive_focus = NULL;
+
 	if (c->mon && c->mon == selmon) {
 		if (next_in_stack && !c->swallowedby) {
 			nextfocus = next_in_stack;
@@ -6144,6 +6282,7 @@ void unmapnotify(struct wl_listener *listener, void *data) {
 	wlr_scene_node_destroy(&c->scene->node);
 	printstatus();
 	motionnotify(0, NULL, 0, 0, 0, 0);
+	auto_dump_clients_maybe();
 }
 
 void updatemons(struct wl_listener *listener, void *data) {
@@ -6260,6 +6399,7 @@ void updatemons(struct wl_listener *listener, void *data) {
 			if (!c->mon && client_surface(c)->mapped) {
 				c->mon = selmon;
 				reset_foreign_tolevel(c);
+				sync_ext_foreign_toplevel(c);
 			}
 			if (c->tags == 0 && !c->is_in_scratchpad) {
 				c->tags = selmon->tagset[selmon->seltags];
@@ -6294,8 +6434,28 @@ void updatetitle(struct wl_listener *listener, void *data) {
 	title = client_get_title(c);
 	if (title && c->foreign_toplevel)
 		wlr_foreign_toplevel_handle_v1_set_title(c->foreign_toplevel, title);
+	update_ext_foreign_toplevel(c);
 	if (c == focustop(c->mon))
 		printstatus();
+	auto_dump_clients_maybe();
+	auto_dump_marks_maybe(); /* mark titles can change too */
+}
+
+void handle_toplevel_icon_set(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_toplevel_icon_manager_v1_set_icon_event *event = data;
+	Client *c = event->toplevel->base->data;
+	if (!c)
+		return;
+	if (c->icon)
+		wlr_xdg_toplevel_icon_v1_unref(c->icon);
+	c->icon = event->icon ? wlr_xdg_toplevel_icon_v1_ref(event->icon) : NULL;
+	wlr_log(WLR_INFO, "xdg_toplevel_icon: appid=%s name=%s",
+			c->icon ? client_get_appid(c) : "(unset)",
+			(c->icon && c->icon->name) ? c->icon->name : "(no name)");
+	if (c == focustop(c->mon))
+		printstatus();
+	auto_dump_clients_maybe();
+	auto_dump_marks_maybe(); /* a marked client's icon may have changed */
 }
 
 void // 17 fix to 0.5
@@ -6672,7 +6832,7 @@ int32_t main(int32_t argc, char *argv[]) {
 		} else if (c == 'd') {
 			cli_debug_log = true;
 		} else if (c == 'v') {
-			printf("mango " VERSION "\n");
+			printf("noirwm " VERSION "\n");
 			return EXIT_SUCCESS;
 		} else if (c == 'c') {
 			cli_config_path = optarg;
@@ -6695,10 +6855,10 @@ int32_t main(int32_t argc, char *argv[]) {
 	cleanup();
 	return EXIT_SUCCESS;
 usage:
-	printf("Usage: mango [OPTIONS]\n"
+	printf("Usage: noir [OPTIONS]\n"
 		   "\n"
 		   "Options:\n"
-		   "  -v             Show mango version\n"
+		   "  -v             Show noir version\n"
 		   "  -d             Enable debug log\n"
 		   "  -c <file>      Use custom configuration file\n"
 		   "  -s <command>   Execute startup command\n"

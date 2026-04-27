@@ -78,13 +78,15 @@ typedef struct {
 	int32_t ignore_maximize;
 	int32_t ignore_minimize;
 	int32_t isnosizehint;
+	int32_t atstartup;
 	int32_t indleinhibit_when_focus;
 	char *monitor;
 	int32_t offsetx;
 	int32_t offsety;
-	int32_t width;
-	int32_t height;
+	float width;
+	float height;
 	int32_t nofocus;
+	int32_t stayfocused;
 	int32_t nofadein;
 	int32_t nofadeout;
 	int32_t no_force_center;
@@ -95,6 +97,7 @@ typedef struct {
 	int32_t force_tearing;
 	int32_t noswallow;
 	int32_t noblur;
+	int32_t nodim;
 	float focused_opacity;
 	float unfocused_opacity;
 	float scroller_proportion_single;
@@ -170,6 +173,11 @@ typedef struct {
 	int32_t no_render_border;
 	int32_t open_as_floating;
 	int32_t no_hide;
+	/* per-tag gap overrides, -1 means "unset, inherit global config.gapp*" */
+	int32_t gap_in_h;
+	int32_t gap_in_v;
+	int32_t gap_out_h;
+	int32_t gap_out_v;
 } ConfigTagRule;
 
 typedef struct {
@@ -298,6 +306,8 @@ typedef struct {
 	float shadowscolor[4];
 
 	int32_t smartgaps;
+	int32_t auto_dump_clients; /* auto-write /tmp/noir_clients.json on every relevant state change */
+	int32_t auto_dump_marks;   /* auto-write /tmp/noir_marks.json on every mark mutation */
 	uint32_t gappih;
 	uint32_t gappiv;
 	uint32_t gappoh;
@@ -353,6 +363,9 @@ typedef struct {
 	char **exec_once;
 	int32_t exec_once_count;
 
+	char **exec_shutdown;
+	int32_t exec_shutdown_count;
+
 	char *cursor_theme;
 	uint32_t cursor_size;
 
@@ -364,6 +377,9 @@ typedef struct {
 	int32_t allow_tearing;
 	int32_t allow_shortcuts_inhibit;
 	int32_t allow_lock_transparent;
+	int32_t allow_fullscreen_opacity;
+	int32_t dim_inactive;
+	float dim_strength;
 
 	struct xkb_rule_names xkb_rules;
 	char xkb_rules_rules[128];
@@ -978,11 +994,18 @@ FuncType parse_func_name(char *func_name, Arg *arg, char *arg_value,
 	} else if (strcmp(func_name, "tagtoleft") == 0) {
 		func = tagtoleft;
 		(*arg).i = atoi(arg_value);
+	} else if (strcmp(func_name, "tagtoleftsilent") == 0) {
+		func = tagtoleftsilent;
+		(*arg).i = atoi(arg_value);
 	} else if (strcmp(func_name, "tagtoright") == 0) {
 		func = tagtoright;
 		(*arg).i = atoi(arg_value);
+	} else if (strcmp(func_name, "tagtorightsilent") == 0) {
+		func = tagtorightsilent;
+		(*arg).i = atoi(arg_value);
 	} else if (strcmp(func_name, "killclient") == 0) {
 		func = killclient;
+		(*arg).v = strdup(arg_value);
 	} else if (strcmp(func_name, "centerwin") == 0) {
 		func = centerwin;
 	} else if (strcmp(func_name, "focuslast") == 0) {
@@ -1044,6 +1067,8 @@ FuncType parse_func_name(char *func_name, Arg *arg, char *arg_value,
 		(*arg).v = strdup(arg_value);
 	} else if (strcmp(func_name, "switch_layout") == 0) {
 		func = switch_layout;
+	} else if (strcmp(func_name, "switch_layout_prev") == 0) {
+		func = switch_layout_prev;
 	} else if (strcmp(func_name, "togglefloating") == 0) {
 		func = togglefloating;
 	} else if (strcmp(func_name, "togglefullscreen") == 0) {
@@ -1081,6 +1106,21 @@ FuncType parse_func_name(char *func_name, Arg *arg, char *arg_value,
 	} else if (strcmp(func_name, "chvt") == 0) {
 		func = chvt;
 		(*arg).ui = atoi(arg_value);
+	} else if (strcmp(func_name, "mark") == 0) {
+		func = mark;
+		(*arg).v = strdup(arg_value);
+	} else if (strcmp(func_name, "focus_mark") == 0) {
+		func = focus_mark;
+		(*arg).v = strdup(arg_value);
+	} else if (strcmp(func_name, "focus_mark_or_set") == 0) {
+		func = focus_mark_or_set;
+		(*arg).v = strdup(arg_value);
+	} else if (strcmp(func_name, "unmark") == 0) {
+		func = unmark;
+		(*arg).v = strdup(arg_value);
+	} else if (strcmp(func_name, "swap_with_mark") == 0) {
+		func = swap_with_mark;
+		(*arg).v = strdup(arg_value);
 	} else if (strcmp(func_name, "spawn") == 0) {
 		func = spawn;
 		char *values[] = {arg_value, arg_value2, arg_value3, arg_value4,
@@ -1206,7 +1246,10 @@ FuncType parse_func_name(char *func_name, Arg *arg, char *arg_value,
 		func = toggle_all_floating;
 	} else if (strcmp(func_name, "dumpclients") == 0) {
 		func = dumpclients;
-		(*arg).v = strdup(arg_value ? arg_value : "/tmp/mango_clients.json");
+		(*arg).v = strdup(arg_value ? arg_value : "/tmp/noir_clients.json");
+	} else if (strcmp(func_name, "dumpmarks") == 0) {
+		func = dumpmarks;
+		(*arg).v = strdup(arg_value ? arg_value : "/tmp/noir_marks.json");
 	} else {
 		return NULL;
 	}
@@ -1233,6 +1276,15 @@ void run_exec_once() {
 
 	for (int32_t i = 0; i < config.exec_once_count; i++) {
 		arg.v = config.exec_once[i];
+		spawn_shell(&arg);
+	}
+}
+
+void run_exec_shutdown() {
+	Arg arg;
+
+	for (int32_t i = 0; i < config.exec_shutdown_count; i++) {
+		arg.v = config.exec_shutdown[i];
 		spawn_shell(&arg);
 	}
 }
@@ -1429,6 +1481,12 @@ bool parse_option(Config *config, char *key, char *value) {
 		config->allow_shortcuts_inhibit = atoi(value);
 	} else if (strcmp(key, "allow_lock_transparent") == 0) {
 		config->allow_lock_transparent = atoi(value);
+	} else if (strcmp(key, "allow_fullscreen_opacity") == 0) {
+		config->allow_fullscreen_opacity = atoi(value);
+	} else if (strcmp(key, "dim_inactive") == 0) {
+		config->dim_inactive = atoi(value);
+	} else if (strcmp(key, "dim_strength") == 0) {
+		config->dim_strength = atof(value);
 	} else if (strcmp(key, "no_border_when_single") == 0) {
 		config->no_border_when_single = atoi(value);
 	} else if (strcmp(key, "no_radius_when_single") == 0) {
@@ -1638,6 +1696,10 @@ bool parse_option(Config *config, char *key, char *value) {
 		config->drag_warp_cursor = atoi(value);
 	} else if (strcmp(key, "smartgaps") == 0) {
 		config->smartgaps = atoi(value);
+	} else if (strcmp(key, "auto_dump_clients") == 0) {
+		config->auto_dump_clients = atoi(value);
+	} else if (strcmp(key, "auto_dump_marks") == 0) {
+		config->auto_dump_marks = atoi(value);
 	} else if (strcmp(key, "repeat_rate") == 0) {
 		config->repeat_rate = atoi(value);
 	} else if (strcmp(key, "repeat_delay") == 0) {
@@ -1912,6 +1974,10 @@ bool parse_option(Config *config, char *key, char *value) {
 		rule->no_render_border = 0;
 		rule->open_as_floating = 0;
 		rule->no_hide = 0;
+		rule->gap_in_h = -1;
+		rule->gap_in_v = -1;
+		rule->gap_out_h = -1;
+		rule->gap_out_v = -1;
 
 		bool parse_error = false;
 		char *token = strtok(value, ",");
@@ -1947,6 +2013,22 @@ bool parse_option(Config *config, char *key, char *value) {
 					rule->nmaster = CLAMP_INT(atoi(val), 1, 99);
 				} else if (strcmp(key, "mfact") == 0) {
 					rule->mfact = CLAMP_FLOAT(atof(val), 0.1f, 0.9f);
+				} else if (strcmp(key, "gap_in_h") == 0) {
+					rule->gap_in_h = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_in_v") == 0) {
+					rule->gap_in_v = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_out_h") == 0) {
+					rule->gap_out_h = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_out_v") == 0) {
+					rule->gap_out_v = CLAMP_INT(atoi(val), 0, 1000);
+				} else if (strcmp(key, "gap_in") == 0) {
+					int32_t v = CLAMP_INT(atoi(val), 0, 1000);
+					rule->gap_in_h = v;
+					rule->gap_in_v = v;
+				} else if (strcmp(key, "gap_out") == 0) {
+					int32_t v = CLAMP_INT(atoi(val), 0, 1000);
+					rule->gap_out_h = v;
+					rule->gap_out_v = v;
 				} else {
 					fprintf(stderr,
 							"\033[1m\033[31m[ERROR]:\033[33m Unknown "
@@ -2058,6 +2140,7 @@ bool parse_option(Config *config, char *key, char *value) {
 		rule->ignore_maximize = -1;
 		rule->ignore_minimize = -1;
 		rule->isnosizehint = -1;
+		rule->atstartup = -1;
 		rule->indleinhibit_when_focus = -1;
 		rule->isterm = -1;
 		rule->allow_csd = -1;
@@ -2066,7 +2149,9 @@ bool parse_option(Config *config, char *key, char *value) {
 		rule->force_tearing = -1;
 		rule->noswallow = -1;
 		rule->noblur = -1;
+		rule->nodim = -1;
 		rule->nofocus = -1;
+		rule->stayfocused = -1;
 		rule->nofadein = -1;
 		rule->nofadeout = -1;
 		rule->no_force_center = -1;
@@ -2125,6 +2210,8 @@ bool parse_option(Config *config, char *key, char *value) {
 					rule->offsety = atoi(val);
 				} else if (strcmp(key, "nofocus") == 0) {
 					rule->nofocus = atoi(val);
+				} else if (strcmp(key, "stayfocused") == 0) {
+					rule->stayfocused = atoi(val);
 				} else if (strcmp(key, "nofadein") == 0) {
 					rule->nofadein = atoi(val);
 				} else if (strcmp(key, "nofadeout") == 0) {
@@ -2132,9 +2219,9 @@ bool parse_option(Config *config, char *key, char *value) {
 				} else if (strcmp(key, "no_force_center") == 0) {
 					rule->no_force_center = atoi(val);
 				} else if (strcmp(key, "width") == 0) {
-					rule->width = atoi(val);
+					rule->width = atof(val);
 				} else if (strcmp(key, "height") == 0) {
-					rule->height = atoi(val);
+					rule->height = atof(val);
 				} else if (strcmp(key, "isnoborder") == 0) {
 					rule->isnoborder = atoi(val);
 				} else if (strcmp(key, "isnoshadow") == 0) {
@@ -2169,6 +2256,8 @@ bool parse_option(Config *config, char *key, char *value) {
 					rule->ignore_minimize = atoi(val);
 				} else if (strcmp(key, "isnosizehint") == 0) {
 					rule->isnosizehint = atoi(val);
+				} else if (strcmp(key, "atstartup") == 0) {
+					rule->atstartup = atoi(val);
 				} else if (strcmp(key, "indleinhibit_when_focus") == 0) {
 					rule->indleinhibit_when_focus = atoi(val);
 				} else if (strcmp(key, "isterm") == 0) {
@@ -2185,6 +2274,8 @@ bool parse_option(Config *config, char *key, char *value) {
 					rule->noswallow = atoi(val);
 				} else if (strcmp(key, "noblur") == 0) {
 					rule->noblur = atoi(val);
+				} else if (strcmp(key, "nodim") == 0) {
+					rule->nodim = atoi(val);
 				} else if (strcmp(key, "scroller_proportion") == 0) {
 					rule->scroller_proportion = atof(val);
 				} else if (strcmp(key, "isfullscreen") == 0) {
@@ -2293,6 +2384,29 @@ bool parse_option(Config *config, char *key, char *value) {
 		}
 
 		config->exec_once_count++;
+
+	} else if (strncmp(key, "exec-shutdown", 13) == 0) {
+
+		char **new_exec_shutdown =
+			realloc(config->exec_shutdown,
+					(config->exec_shutdown_count + 1) * sizeof(char *));
+		if (!new_exec_shutdown) {
+			fprintf(stderr,
+					"\033[1m\033[31m[ERROR]:\033[33m Failed to allocate "
+					"memory for exec_shutdown\n");
+			return false;
+		}
+		config->exec_shutdown = new_exec_shutdown;
+
+		config->exec_shutdown[config->exec_shutdown_count] = strdup(value);
+		if (!config->exec_shutdown[config->exec_shutdown_count]) {
+			fprintf(stderr,
+					"\033[1m\033[31m[ERROR]:\033[33m Failed to duplicate "
+					"exec_shutdown string\n");
+			return false;
+		}
+
+		config->exec_shutdown_count++;
 
 	} else if (regex_match("^bind[s|l|r|p]*$", key)) {
 		config->key_bindings =
@@ -2754,7 +2868,7 @@ bool parse_config_file(Config *config, const char *file_path, bool must_exist) {
 						"variable not set.\n");
 				return false;
 			}
-			snprintf(full_path, sizeof(full_path), "%s/.config/mango/%s", home,
+			snprintf(full_path, sizeof(full_path), "%s/.config/noir/%s", home,
 					 file_path + 1);
 		}
 		file = fopen(full_path, "r");
@@ -3085,6 +3199,16 @@ void free_config(void) {
 		config.exec_once_count = 0;
 	}
 
+	// 释放 exec_shutdown
+	if (config.exec_shutdown) {
+		for (i = 0; i < config.exec_shutdown_count; i++) {
+			free(config.exec_shutdown[i]);
+		}
+		free(config.exec_shutdown);
+		config.exec_shutdown = NULL;
+		config.exec_shutdown_count = 0;
+	}
+
 	// 释放 scroller_proportion_preset
 	if (config.scroller_proportion_preset) {
 		free(config.scroller_proportion_preset);
@@ -3171,6 +3295,10 @@ void override_config(void) {
 		CLAMP_INT(config.allow_shortcuts_inhibit, 0, 1);
 	config.allow_lock_transparent =
 		CLAMP_INT(config.allow_lock_transparent, 0, 1);
+	config.allow_fullscreen_opacity =
+		CLAMP_INT(config.allow_fullscreen_opacity, 0, 1);
+	config.dim_inactive = CLAMP_INT(config.dim_inactive, 0, 1);
+	config.dim_strength = CLAMP_FLOAT(config.dim_strength, 0.0f, 0.95f);
 	config.axis_bind_apply_timeout =
 		CLAMP_INT(config.axis_bind_apply_timeout, 0, 1000);
 	config.focus_on_activate = CLAMP_INT(config.focus_on_activate, 0, 1);
@@ -3232,6 +3360,8 @@ void override_config(void) {
 		CLAMP_FLOAT(config.scratchpad_height_ratio, 0.1f, 1.0f);
 	config.borderpx = CLAMP_INT(config.borderpx, 0, 200);
 	config.smartgaps = CLAMP_INT(config.smartgaps, 0, 1);
+	config.auto_dump_clients = CLAMP_INT(config.auto_dump_clients, 0, 1);
+	config.auto_dump_marks = CLAMP_INT(config.auto_dump_marks, 0, 1);
 	config.blur = CLAMP_INT(config.blur, 0, 1);
 	config.blur_layer = CLAMP_INT(config.blur_layer, 0, 1);
 	config.blur_optimized = CLAMP_INT(config.blur_optimized, 0, 1);
@@ -3293,6 +3423,8 @@ void set_value_default() {
 	config.hotarea_corner = BOTTOM_LEFT;
 	config.enable_hotarea = 1;
 	config.smartgaps = 0;
+	config.auto_dump_clients = 0;
+	config.auto_dump_marks = 0;
 	config.sloppyfocus = 1;
 	config.gappih = 5;
 	config.gappiv = 5;
@@ -3323,6 +3455,9 @@ void set_value_default() {
 	config.allow_tearing = TEARING_DISABLED;
 	config.allow_shortcuts_inhibit = SHORTCUTS_INHIBIT_ENABLE;
 	config.allow_lock_transparent = 0;
+	config.allow_fullscreen_opacity = 0;
+	config.dim_inactive = 0;
+	config.dim_strength = 0.3f;
 	config.no_border_when_single = 0;
 	config.no_radius_when_single = 0;
 	config.snap_distance = 30;
@@ -3535,13 +3670,13 @@ bool parse_config(void) {
 			return false;
 		}
 		// 构建日志文件路径
-		snprintf(filename, sizeof(filename), "%s/.config/mango/config.conf",
+		snprintf(filename, sizeof(filename), "%s/.config/noir/config.conf",
 				 homedir);
 
 		// 检查文件是否存在
 		if (access(filename, F_OK) != 0) {
-			// 如果文件不存在，则使用 /etc/mango/config.conf
-			snprintf(filename, sizeof(filename), "%s/mango/config.conf",
+			// 如果文件不存在，则使用 /etc/noir/config.conf
+			snprintf(filename, sizeof(filename), "%s/noir/config.conf",
 					 SYSCONFDIR);
 		}
 	}
@@ -3796,6 +3931,14 @@ void parse_tagrule(Monitor *m) {
 				m->pertag->no_render_border[tr.id] = tr.no_render_border;
 			if (tr.open_as_floating >= 0)
 				m->pertag->open_as_floating[tr.id] = tr.open_as_floating;
+			if (tr.gap_in_h >= 0)
+				m->pertag->gappih[tr.id] = tr.gap_in_h;
+			if (tr.gap_in_v >= 0)
+				m->pertag->gappiv[tr.id] = tr.gap_in_v;
+			if (tr.gap_out_h >= 0)
+				m->pertag->gappoh[tr.id] = tr.gap_out_h;
+			if (tr.gap_out_v >= 0)
+				m->pertag->gappov[tr.id] = tr.gap_out_v;
 		}
 	}
 

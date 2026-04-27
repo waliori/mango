@@ -1,239 +1,107 @@
 ---
 title: Installation
-description: Install mangowm on AerynOS, Arch, Fedora, Gentoo, Guix System, NixOS, PikaOS, or build from source.
+description: Build NoirWM from source or consume the Nix flake.
 ---
 
-## Package Installation
+NoirWM is a personal fork without distro packaging. Two paths: build from source, or import the Nix flake.
 
-mangowm is available as a pre-built package on several distributions. Choose your distribution below.
+## Build from source
 
----
-
-### AerynOS
-
-mangowm is available in the **AerynOS package repository**.
-
-You can install it using the `moss` package manager:
-
-```bash
-sudo moss install mangowm
-```
-
----
-
-### Arch Linux
-
-mangowm is available in the **Arch User Repository (AUR)**.
-
-You can install it using an AUR helper like `yay` or `paru`:
-
-```bash
-yay -S mangowm-git
-```
-
-> **Tip:** This package pulls the latest git version, ensuring you have the newest features and fixes.
-
----
-
-### Fedora
-
-The package is in the third-party **Terra repository**. First, add the Terra Repository.
-
-> **Warning:** Both commands require root privileges. Use `sudo` if needed.
-
-```bash
-dnf install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
-```
-
-Then, install the package:
-
-```bash
-dnf install mangowm
-```
-
----
-
-### Gentoo
-
-The package is hosted in the community-maintained **GURU** repository.
-
-1. **Add the GURU repository**
-   ```bash
-   emerge --ask --verbose eselect-repository
-   eselect repository enable guru
-   emerge --sync guru
-   ```
-
-2. **Unmask packages**
-   Add the required packages to your `package.accept_keywords` file:
-   - `gui-libs/scenefx`
-   - `gui-wm/mangowm`
-
-3. **Install mango**
-   ```bash
-   emerge --ask --verbose gui-wm/mangowm
-   ```
-
----
-
-### Guix System
-
-The package definition is described in the source repository.
-
-1. **Add mango channel**
-   Add to `$HOME/.config/guix/channels.scm`:
-   ```scheme
-   (cons (channel
-           (name 'mangowm)
-           (url "https://github.com/mangowm/mango.git")
-           (branch "main"))
-         %default-channels)
-   ```
-
-2. **Install**
-   After running `guix pull`, you can install mangowm:
-   ```bash
-   guix install mangowm
-   ```
-
-   Or add it to your system configuration using the mangowm module:
-   ```scheme
-   (use-modules (mangowm))
-
-   (packages (cons*
-               mangowm-git
-               ... ;; Other packages
-               %base-packages))
-   ```
-
-> **Tip:** For more information, see the [Guix System documentation](https://guix.gnu.org/manual/devel/en/html_node/Channels.html).
-
----
-
-### NixOS
-
-The repository provides a Flake with a NixOS module.
-
-1. **Add flake input**
-   ```nix
-   # flake.nix
-   {
-     inputs = {
-       nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-       mangowm = {
-         url = "github:mangowm/mango";
-         inputs.nixpkgs.follows = "nixpkgs";
-       };
-       # other inputs ...
-     };
-   }
-   ```
-
-2. **Import the NixOS module**
-
-   **Option A — Import in `configuration.nix`:**
-   ```nix
-   # configuration.nix (or any other file that you import)
-   {inputs, ...}: {
-     imports = [
-       inputs.mangowm.nixosModules.mango
-       # .. other imports ...
-     ];
-
-     # ...
-   }
-   ```
-
-   **Option B — Import directly in flake:**
-   ```nix
-   # flake.nix
-   {
-     # ...
-
-     outputs = { self, nixpkgs, mangowm, ...}@inputs: let
-       inherit (nixpkgs) lib;
-       # ...
-     in {
-       nixosConfigurations.YourHostName = lib.nixosSystem {
-         modules = [
-           mangowm.nixosModules.mango # or inputs.mangowm.nixosModules.mango
-           # other imports ...
-         ];
-       };
-     }
-   }
-   ```
-
-3. **Enable the module**
-   ```nix
-   # configuration.nix (or any other file that you import)
-   {
-     programs.mango.enable = true;
-   }
-   ```
-
-4. **Extra options**
-   - `programs.mango.package` — the mango package to use, allows usage of custom mango drvs
-   - `programs.mango.addLoginEntry` (default: `true`) — adds login entry to the display manager
-
----
-
-### PikaOS
-
-mangowm is available in the **PikaOS package repository**.
-
-You can install it using the `pikman` package manager:
-
-```bash
-pikman install mangowm
-```
-
----
-
-## Building from Source
-
-If your distribution isn't listed above, or you want the latest unreleased changes, you can build mangowm from source.
-
-> **Info:** Ensure the following dependencies are installed before proceeding:
-> - `wayland`
-> - `wayland-protocols`
-> - `libinput`
-> - `libdrm`
-> - `libxkbcommon`
-> - `pixman`
-> - `libdisplay-info`
-> - `libliftoff`
-> - `hwdata`
-> - `seatd`
+> **Info:** Required dependencies:
+>
+> - `wayland`, `wayland-protocols`, `wayland-scanner`
+> - `wlroots` (0.19.x)
+> - `scenefx` (0.4.x — vendored as a meson subproject; no system install needed)
+> - `libinput`, `libdrm`, `libxkbcommon`, `pixman`
+> - `libdisplay-info`, `libliftoff`, `hwdata`, `seatd`
 > - `pcre2`
-> - `xorg-xwayland`
-> - `libxcb`
+> - `xorg-xwayland`, `libxcb` (for XWayland support)
 
-You will need to build `wlroots` and `scenefx` manually as well.
+```bash
+git clone https://github.com/waliori/noirwm.git
+cd noirwm
+meson setup build --buildtype=release
+ninja -C build
+sudo ninja -C build install
+```
 
-1. **Build wlroots**
-   Clone and install the specific version required (check README for latest version).
-   ```bash
-   git clone -b 0.19.3 https://gitlab.freedesktop.org/wlroots/wlroots.git
-   cd wlroots
-   meson build -Dprefix=/usr
-   sudo ninja -C build install
-   ```
+After install:
 
-2. **Build scenefx**
-   This library handles the visual effects.
-   ```bash
-   git clone -b 0.4.1 https://github.com/wlrfx/scenefx.git
-   cd scenefx
-   meson build -Dprefix=/usr
-   sudo ninja -C build install
-   ```
+- Compositor binary: `/usr/local/bin/noir`
+- Dispatcher CLI: `/usr/local/bin/mmsg`
+- Default config: `/etc/noir/config.conf`
+- Wayland session: `/usr/local/share/wayland-sessions/noir.desktop`
 
-3. **Build mangowm**
-   Finally, compile the compositor itself.
-   ```bash
-   git clone https://github.com/mangowm/mango.git
-   cd mango
-   meson build -Dprefix=/usr
-   sudo ninja -C build install
-   ```
+> **Note:** `wlroots` and `scenefx` are sensitive to version. NoirWM is pinned to `wlroots 0.19` + `scenefx 0.4.1` with a PR #154 backport (vendored in `subprojects/scenefx/`). Don't use system `scenefx` unless you've confirmed the backport is present.
+
+---
+
+## NixOS via flake
+
+The repo provides `nixosModules.noir` and `hmModules.noir`.
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    home-manager.url = "github:nix-community/home-manager";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+
+    noirwm.url = "github:waliori/noirwm";
+  };
+
+  outputs = inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" ];
+      flake.nixosConfigurations.hostname = inputs.nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          inputs.home-manager.nixosModules.home-manager
+          inputs.noirwm.nixosModules.noir
+          { programs.noir.enable = true; }
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.users."username".imports = [
+              ({ ... }: {
+                wayland.windowManager.noir = {
+                  enable = true;
+                  settings = ''
+                    # see assets/config.conf for the starter
+                  '';
+                  autostart_sh = ''
+                    # commands to run at session start
+                  '';
+                };
+              })
+              inputs.noirwm.hmModules.noir
+            ];
+          }
+        ];
+      };
+    };
+}
+```
+
+### Module options
+
+- `programs.noir.enable` — flips on the system module (Wayland session, portals, polkit).
+- `programs.noir.package` — override the noirwm package (e.g. for a custom build).
+- `wayland.windowManager.noir.enable` — flips on the home-manager half (Nix-side config generation, autostart helper).
+- `wayland.windowManager.noir.settings` — structured Nix config (converted to `~/.config/noir/config.conf`). See `nix/lib.nix` for `toNoir` semantics.
+- `wayland.windowManager.noir.extraConfig` — raw config-file lines appended after the structured output.
+- `wayland.windowManager.noir.autostart_sh` — content of `~/.config/noir/autostart.sh`; an `exec-once` line for it is auto-added to the config.
+
+---
+
+## Verify
+
+After install + session pick at the display manager, log in. You should land in noir. From a terminal inside the session:
+
+```bash
+echo "$XDG_CURRENT_DESKTOP $XDG_SESSION_DESKTOP"   # both 'noir'
+noir -v                                            # prints noirwm <version>
+mmsg -d dumpclients                                # writes /tmp/noir_clients.json
+```
+
+If `mmsg` complains about XDG variables, your session env didn't propagate — see [XDG Portals](/docs/configuration/xdg-portals).

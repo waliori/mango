@@ -5,11 +5,9 @@ description: Customize the visual appearance of borders, colors, and the cursor.
 
 ## Dimensions
 
-Control the sizing of window borders and gaps.
-
 | Setting | Default | Description |
 | :--- | :--- | :--- |
-| `borderpx` | `4` | Border width in pixels. |
+| `borderpx` | `4` | Border width (px). |
 | `gappih` | `5` | Horizontal inner gap (between windows). |
 | `gappiv` | `5` | Vertical inner gap. |
 | `gappoh` | `10` | Horizontal outer gap (between windows and screen edges). |
@@ -17,38 +15,27 @@ Control the sizing of window borders and gaps.
 
 ## Colors
 
-Colors are defined in `0xRRGGBBAA` hex format.
+Format: `0xRRGGBBAA` hex.
 
 ```ini
-# Background color of the root window
-rootcolor=0x323232ff
-
-# Inactive window border
-bordercolor=0x444444ff
-
-# Active window border
-focuscolor=0xc66b25ff
-
-# Urgent window border (alerts)
-urgentcolor=0xad401fff
+rootcolor=0x323232ff      # Root window background
+bordercolor=0x444444ff    # Inactive window border
+focuscolor=0xc66b25ff     # Active window border
+urgentcolor=0xad401fff    # Urgent window border
 ```
 
-### State-Specific Colors
+### State-specific colors
 
-You can also color-code windows based on their state:
-
-| State | Config Key | Default Color |
+| State | Key | Default |
 | :--- | :--- | :--- |
 | Maximized | `maximizescreencolor` | `0x89aa61ff` |
 | Scratchpad | `scratchpadcolor` | `0x516c93ff` |
 | Global | `globalcolor` | `0xb153a7ff` |
 | Overlay | `overlaycolor` | `0x14a57cff` |
 
-> **Tip:** For scratchpad window sizing, see [Scratchpad](/docs/window-management/scratchpad) configuration.
+> **Tip:** For scratchpad sizing, see [Scratchpad](/docs/window-management/scratchpad).
 
-## Cursor Theme
-
-Set the size and theme of your mouse cursor.
+## Cursor
 
 ```ini
 cursor_size=24

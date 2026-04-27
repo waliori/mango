@@ -444,6 +444,14 @@ void apply_border(Client *c) {
 	wlr_scene_rect_set_corner_radius(c->border, config.border_radius,
 									 current_corner_location);
 	wlr_scene_rect_set_clipped_region(c->border, clipped_region);
+
+	/* Size the dim overlay to track the client's visible rect. */
+	if (c->dim) {
+		wlr_scene_node_set_position(&c->dim->node, rect_x, rect_y);
+		wlr_scene_rect_set_size(c->dim, rect_width, rect_height);
+		wlr_scene_rect_set_corner_radius(c->dim, config.border_radius,
+										 current_corner_location);
+	}
 }
 
 struct ivec2 clip_to_hide(Client *c, struct wlr_box *clip_box) {
@@ -1093,7 +1101,13 @@ bool client_apply_focus_opacity(Client *c) {
 	float *border_color = get_border_color(c);
 	if (c->isfullscreen) {
 		c->opacity_animation.running = false;
-		client_set_opacity(c, 1);
+		// Upstream PR #585: opt-in, fullscreen windows respect their
+		// focused/unfocused opacity instead of being forced opaque.
+		float fs_opacity =
+			config.allow_fullscreen_opacity
+				? (c == selmon->sel ? c->focused_opacity : c->unfocused_opacity)
+				: 1.0f;
+		client_set_opacity(c, fs_opacity);
 	} else if (c->animation.running && c->animation.action == OPEN) {
 		c->opacity_animation.running = false;
 		struct timespec now;

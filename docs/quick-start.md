@@ -1,88 +1,81 @@
 ---
 title: Quick Start
-description: Basic configuration and first steps with mangowm.
+description: Basic configuration and first steps with NoirWM.
 ---
 
-Now that you have mangowm installed, let's get your environment set up.
+Now that you have NoirWM installed, get the environment set up.
 
-## Initial Setup
+## Initial setup
 
-1. **Create Configuration Directory**
+1. **Create configuration directory**
 
-   mangowm looks for configuration files in `~/.config/mango/`.
-
-   ```bash
-   mkdir -p ~/.config/mango
-   ```
-
-2. **Copy Default Config**
-
-   A default configuration file is provided at `/etc/mango/config.conf`. Copy it to your local directory to start customizing.
+   NoirWM looks in `~/.config/noir/`.
 
    ```bash
-   cp /etc/mango/config.conf ~/.config/mango/config.conf
+   mkdir -p ~/.config/noir
    ```
 
-3. **Launch mangowm**
+2. **Copy the default config**
 
-   You can now start the compositor from your TTY.
+   The starter config is installed at `/etc/noir/config.conf`. Copy it to start customizing.
 
    ```bash
-   mango
+   cp /etc/noir/config.conf ~/.config/noir/config.conf
    ```
 
-   Optional: To specify a custom config file path:
+3. **Launch noir**
+
+   From a TTY:
 
    ```bash
-   mango -c /path/to/your/config.conf
+   noir
    ```
 
-## Essential Keybindings
+   Or with a custom config path:
 
-mangowm uses the following keybinds by default:
+   ```bash
+   noir -c /path/to/your/config.conf
+   ```
 
-| Key Combination | Action |
+## Default keybindings
+
+The starter config uses these defaults:
+
+| Key | Action |
 | :--- | :--- |
-| `Alt` + `Return` | Open Terminal (defaults to `foot`) |
-| `Alt` + `Space` | Open Launcher (defaults to `rofi`) |
-| `Alt` + `Q` | Close (Kill) the active window |
-| `Super` + `M` | Quit mangowm |
-| `Super` + `F` | Toggle Fullscreen |
-| `Alt` + `Arrow Keys` | Move focus (Left, Right, Up, Down) |
-| `Ctrl` + `1-9` | Switch to Tag 1-9 |
-| `Alt` + `1-9` | Move window to Tag 1-9 |
+| `Alt` + `Return` | Open terminal (defaults to `foot`) |
+| `Alt` + `Space` | Open launcher (defaults to `rofi`) |
+| `Alt` + `Q` | Close (kill) the active window |
+| `Super` + `M` | Quit noir |
+| `Super` + `F` | Toggle fullscreen |
+| `Alt` + arrows | Move focus (left/right/up/down) |
+| `Ctrl` + `1-9` | Switch to tag 1-9 |
+| `Alt` + `1-9` | Move window to tag 1-9 |
 
-> **Warning:** Some default bindings rely on specific tools like `foot` (terminal) and `rofi` (launcher). Ensure you have them installed or update your `config.conf` to use your preferred alternatives.
+> **Warning:** Some bindings rely on `foot` (terminal) and `rofi` (launcher). Install them or update `binds.conf` to use your preferred alternatives.
 
-## Recommended Tools
+## Recommended companion tools
 
-To get a fully functional desktop experience, we recommend installing the following components:
-
-| Category | Recommended Tools |
+| Category | Options |
 | :--- | :--- |
-| Application Launcher | rofi, bemenu, wmenu, fuzzel |
-| Terminal Emulator | foot, wezterm, alacritty, kitty, ghostty |
-| Status Bar | waybar, eww, quickshell, ags |
-| Desktop Shell | Noctalia, DankMaterialShell |
-| Wallpaper Setup | swww, swaybg |
-| Notification Daemon | swaync, dunst, mako |
-| Desktop Portal | xdg-desktop-portal, xdg-desktop-portal-wlr, xdg-desktop-portal-gtk |
+| Application launcher | rofi, bemenu, wmenu, fuzzel |
+| Terminal | foot, kitty, ghostty, wezterm, alacritty |
+| Status bar / shell | **Quickshell** (preferred — pairs with noir's auto-dumped JSON), waybar, eww, ags |
+| Wallpaper | swww, swaybg |
+| Notifications | swaync, dunst, mako |
+| Portals | xdg-desktop-portal, xdg-desktop-portal-wlr, xdg-desktop-portal-gtk |
 | Clipboard | wl-clipboard, wl-clip-persist, cliphist |
-| Gamma Control / Night Light | wlsunset, gammastep |
-| Miscellaneous | xfce-polkit, wlogout |
+| Gamma / night light | wlsunset, gammastep |
+| Misc | xfce-polkit, wlogout |
 
-## Example Configuration
+## Reference configuration
 
-Check out the [example configuration](https://github.com/DreamMaoMao/mango-config) by the creator of mangowm, including complete setups for mangowm, Waybar, Rofi, and more.
+For a full working setup using NoirWM + Quickshell + waybar, see the dotfiles in [waliori/WalioriOS](https://github.com/waliori/WalioriOS) under `home-manager/dotfiles/noir/` and `home-manager/dotfiles/quickshell/`.
 
-```bash
-git clone https://github.com/DreamMaoMao/mango-config.git ~/.config/mango
-```
+## Next steps
 
-## Next Steps
-
-Now that you are up and running, dive deeper into customizing mangowm:
-
-- [Configure Monitors](/docs/configuration/monitors) — Set up resolution, scaling, and multi-monitor layouts.
-- [Window Rules](/docs/window-management/rules#window-rules) — Define how specific applications should behave.
-- [Appearance](/docs/visuals/theming) — Customize colors, borders, gaps, and effects.
+- [Configure Monitors](/docs/configuration/monitors) — resolution, scaling, multi-monitor.
+- [Window Rules](/docs/window-management/rules#window-rules) — per-application behavior.
+- [Marks](/docs/window-management/marks) — Vim-style window marks.
+- [Auto-dump JSON](/docs/configuration/auto-dump) — drive external UIs from compositor state.
+- [Theming](/docs/visuals/theming) — colors, borders, gaps.

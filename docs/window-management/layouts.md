@@ -3,9 +3,9 @@ title: Layouts
 description: Configure and switch between different window layouts.
 ---
 
-## Supported Layouts
+## Supported layouts
 
-mangowm supports a variety of layouts that can be assigned per tag.
+NoirWM supports a variety of layouts that can be assigned per tag.
 
 - `tile`
 - `scroller`
@@ -22,7 +22,7 @@ mangowm supports a variety of layouts that can be assigned per tag.
 
 ---
 
-## Scroller Layout
+## Scroller layout
 
 The Scroller layout positions windows in a scrollable strip, similar to PaperWM.
 
@@ -38,16 +38,15 @@ The Scroller layout positions windows in a scrollable strip, similar to PaperWM.
 | `edge_scroller_pointer_focus` | `1` | Focus windows even if partially off-screen. |
 | `scroller_proportion_preset` | `0.5,0.8,1.0` | Presets for cycling window widths. |
 | `scroller_ignore_proportion_single` | `1` | Ignore proportion adjustments for single windows. |
-| `scroller_default_proportion_single` | `1.0` | Default proportion for single windows in scroller. **Requires `scroller_ignore_proportion_single=0` to take effect.** |
+| `scroller_default_proportion_single` | `1.0` | Default proportion for single windows in scroller. **Requires `scroller_ignore_proportion_single=0`.** |
 
-> **Warning:** `scroller_prefer_overspread`, `scroller_focus_center`, and `scroller_prefer_center` interact with each other. Their priority order is:
+> **Warning:** `scroller_prefer_overspread`, `scroller_focus_center`, and `scroller_prefer_center` interact. Priority order:
 >
 > **scroller_prefer_overspread > scroller_focus_center > scroller_prefer_center**
 >
-> To ensure a lower-priority setting takes effect, you must set all higher-priority options to `0`.
+> To make a lower-priority setting take effect, set all higher-priority options to `0`.
 
 ```ini
-# Example scroller configuration
 scroller_structs=20
 scroller_default_proportion=0.9
 scroller_focus_center=0
@@ -60,21 +59,20 @@ scroller_proportion_preset=0.5,0.8,1.0
 
 ---
 
-## Master-Stack Layouts
+## Master-stack layouts
 
-These settings apply to layouts like `tile` and `center_tile`.
+Apply to `tile` and `center_tile`.
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
 | `new_is_master` | `1` | New windows become the master window. |
-| `default_mfact` | `0.55` | The split ratio between master and stack areas. |
+| `default_mfact` | `0.55` | Split ratio between master and stack areas. |
 | `default_nmaster` | `1` | Number of allowed master windows. |
 | `smartgaps` | `0` | Disable gaps when only one window is present. |
 | `center_master_overspread` | `0` | (Center Tile) Master spreads across screen if no stack exists. |
 | `center_when_single_stack` | `1` | (Center Tile) Center master when only one stack window exists. |
 
 ```ini
-# Example master-stack configuration
 new_is_master=1
 smartgaps=0
 default_mfact=0.55
@@ -83,17 +81,20 @@ default_nmaster=1
 
 ---
 
-## Switching Layouts
+## Switching layouts
 
-You can switch layouts dynamically or set a default for specific tags using [Tag Rules](/docs/window-management/rules#tag-rules).
-
-**Keybinding Examples:**
+Cycle dynamically or set per-tag defaults via [Tag Rules](/docs/window-management/rules#tag-rules).
 
 ```ini
-# Cycle through layouts
+# Cycle through layouts (forward)
 bind=SUPER,n,switch_layout
+
+# Cycle backward (NoirWM)
+bind=SUPER+SHIFT,n,switch_layout_prev
 
 # Set specific layout
 bind=SUPER,t,setlayout,tile
 bind=SUPER,s,setlayout,scroller
 ```
+
+> **Note:** `switch_layout_prev` is NoirWM-specific. `switch_layout` and `setlayout` are inherited from upstream MangoWC.

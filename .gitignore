@@ -1,10 +1,13 @@
 /.cache
 /.vscode
 /result
+/build
 config.h
-mango
-mango.o
+noir
+noir.o
 util.o
 *-protocol.h
 *-protocol.c
 *-protocol.o
+# meson subproject lock
+subprojects/.wraplock

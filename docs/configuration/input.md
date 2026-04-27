@@ -3,26 +3,22 @@ title: Input Devices
 description: Configure keyboard layouts, mouse sensitivity, and touchpad gestures.
 ---
 
-## Device Configuration
+## Device configuration
 
-mangowm provides granular control over different input devices.
+NoirWM provides granular control over different input devices.
 
-### Keyboard Settings
-
-Control key repeat rates and layout rules.
+### Keyboard settings
 
 | Setting | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `repeat_rate` | `int` | `25` | How many times a key repeats per second. |
+| `repeat_rate` | `int` | `25` | Key repeats per second. |
 | `repeat_delay` | `int` | `600` | Delay (ms) before a held key starts repeating. |
 | `numlockon` | `0` or `1` | `0` | Enable NumLock on startup. |
-| `xkb_rules_rules` | `string` | - | XKB rules file (e.g., `evdev`, `base`). Usually auto-detected. |
-| `xkb_rules_model` | `string` | - | Keyboard model (e.g., `pc104`, `macbook`). |
-| `xkb_rules_layout` | `string` | - | Keyboard layout code (e.g., `us`, `de`, `us,de`). |
-| `xkb_rules_variant` | `string` | - | Layout variant (e.g., `dvorak`, `colemak`, `intl`). |
-| `xkb_rules_options` | `string` | - | XKB options (e.g., `caps:escape`, `ctrl:nocaps`). |
-
-**Example:**
+| `xkb_rules_rules` | `string` | - | XKB rules file (`evdev`, `base`). Usually auto-detected. |
+| `xkb_rules_model` | `string` | - | Keyboard model (`pc104`, `macbook`). |
+| `xkb_rules_layout` | `string` | - | Layout code (`us`, `de`, `us,de`). |
+| `xkb_rules_variant` | `string` | - | Variant (`dvorak`, `colemak`, `intl`). |
+| `xkb_rules_options` | `string` | - | Options (`caps:escape`, `ctrl:nocaps`). |
 
 ```ini
 repeat_rate=40
@@ -35,9 +31,9 @@ xkb_rules_options=caps:escape,ctrl:nocaps
 
 ---
 
-### Trackpad Settings
+### Trackpad settings
 
-Specific settings for laptop touchpads. Some settings may require a relogin to take effect.
+For laptop touchpads. Some require a relogin.
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
@@ -45,7 +41,7 @@ Specific settings for laptop touchpads. Some settings may require a relogin to t
 | `tap_to_click` | `1` | Tap to trigger a left click. |
 | `tap_and_drag` | `1` | Tap and hold to drag items. |
 | `trackpad_natural_scrolling` | `0` | Invert scrolling direction (natural scrolling). |
-| `scroll_button` | `274` | The mouse button that use for scrolling(272 to 279).
+| `scroll_button` | `274` | The mouse button used for scrolling (272–279). |
 | `scroll_method` | `1` | `1` (Two-finger), `2` (Edge), `4` (Button). |
 | `click_method` | `1` | `1` (Button areas), `2` (Clickfinger). |
 | `drag_lock` | `1` | Lock dragging after tapping. |
@@ -54,50 +50,18 @@ Specific settings for laptop touchpads. Some settings may require a relogin to t
 | `middle_button_emulation` | `0` | Emulate middle button. |
 | `swipe_min_threshold` | `1` | Minimum swipe threshold. |
 
----
+#### Detailed values
 
-**Detailed descriptions:**
-
-- `scroll_button` values:
-  - `272` — Left button.
-  - `273` — Right button.
-  - `274` — Middle button.
-  - `275` — Side button.
-  - `276` — Extra button.
-  - `277` — Forward button.
-  - `278` — Back button.
-  - `279` — Task button.
-
-- `scroll_method` values:
-  - `0` — Never send scroll events (no scrolling).
-  - `1` — Two-finger scrolling: send scroll events when two fingers are logically down on the device.
-  - `2` — Edge scrolling: send scroll events when a finger moves along the bottom or right edge.
-  - `4` — Button scrolling: send scroll events when a button is held and the device moves along a scroll axis.
-
-- `click_method` values:
-  - `0` — No software click emulation.
-  - `1` — Button areas: use software-defined areas on the touchpad to generate button events.
-  - `2` — Clickfinger: the number of fingers determines which button is pressed.
-
-- `accel_profile` values:
-  - `0` — No acceleration.
-  - `1` — Flat: no dynamic acceleration. Pointer speed = original input speed × (1 + `accel_speed`).
-  - `2` — Adaptive: slow movement results in less acceleration, fast movement results in more.
-
-- `button_map` values:
-  - `0` — 1/2/3 finger tap maps to left / right / middle.
-  - `1` — 1/2/3 finger tap maps to left / middle / right.
-
-- `send_events_mode` values:
-  - `0` — Send events from this device normally.
-  - `1` — Do not send events from this device.
-  - `2` — Disable this device when an external pointer device is plugged in.
+- **`scroll_button`**: `272` (Left), `273` (Right), `274` (Middle), `275` (Side), `276` (Extra), `277` (Forward), `278` (Back), `279` (Task).
+- **`scroll_method`**: `0` (none), `1` (two-finger), `2` (edge), `4` (button).
+- **`click_method`**: `0` (none), `1` (button areas), `2` (clickfinger).
+- **`accel_profile`**: `0` (none), `1` (flat), `2` (adaptive).
+- **`button_map`**: `0` (1/2/3 finger → left/right/middle), `1` (left/middle/right).
+- **`send_events_mode`**: `0` (normal), `1` (disabled), `2` (disabled when external pointer plugged in).
 
 ---
 
-### Mouse Settings
-
-Configuration for external mice.
+### Mouse settings
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
@@ -112,37 +76,33 @@ Configuration for external mice.
 
 ---
 
----
+## Keyboard layout switching
 
-## Keyboard Layout Switching
-
-To bind multiple layouts and toggle between them, define the layouts in `xkb_rules_layout` and use `xkb_rules_options` to set a toggle key combination. Then bind `switch_keyboard_layout` to trigger a switch.
+Define multiple layouts and toggle between them:
 
 ```ini
-# Define two layouts: US QWERTY and US Dvorak
 xkb_rules_layout=us,us
 xkb_rules_variant=,dvorak
 xkb_rules_options=grp:lalt_lshift_toggle
 ```
 
-Or bind it manually to a key:
+Or bind manually:
 
 ```ini
-# Bind Alt+Shift_L to cycle keyboard layout
 bind=alt,shift_l,switch_keyboard_layout
 ```
 
-Use `mmsg -g -k` to query the current keyboard layout at any time.
+Use `mmsg -g -k` to query the current layout.
 
 ---
 
 ## Input Method Editor (IME)
 
-To use Fcitx5 or IBus, set these environment variables in your config file.
+To use Fcitx5 or IBus, set these in your config.
 
-> **Info:** These settings require a restart of the window manager to take effect.
+> **Info:** Requires a restart of the window manager.
 
-**For Fcitx5:**
+**Fcitx5:**
 
 ```ini
 env=GTK_IM_MODULE,fcitx
@@ -153,7 +113,7 @@ env=XMODIFIERS,@im=fcitx
 env=GLFW_IM_MODULE,ibus
 ```
 
-**For IBus:**
+**IBus:**
 
 ```ini
 env=GTK_IM_MODULE,ibus

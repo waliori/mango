@@ -3,64 +3,62 @@ title: XDG Portals
 description: Set up screen sharing, clipboard, keyring, and file pickers using XDG portals.
 ---
 
-## Portal Configuration
+## Portal configuration
 
-You can customize portal settings via the following paths:
+Customize portal settings via:
 
-- **User Configuration (Priority):** `~/.config/xdg-desktop-portal/mango-portals.conf`
-- **System Fallback:** `/usr/share/xdg-desktop-portal/mango-portals.conf`
+- **User config (priority):** `~/.config/xdg-desktop-portal/noir-portals.conf`
+- **System fallback:** `/usr/share/xdg-desktop-portal/noir-portals.conf`
 
-> **Warning:** If you previously added `dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=wlroots` to your config, remove it. Mango now handles this automatically.
+> **Warning:** If you previously added `dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=wlroots` to your config, remove it. NoirWM handles this automatically.
 
-## Screen Sharing
+NoirWM keeps `XDG_CURRENT_DESKTOP=wlroots` so portal config keys off `wlroots` cleanly. `XDG_SESSION_DESKTOP=noir` is set in the starter config — that's what `mmsg` keys off, so the IPC keeps working.
 
-To enable screen sharing (OBS, Discord, WebRTC), you need `xdg-desktop-portal-wlr`.
+## Screen sharing
 
-1. **Install Dependencies**
+Required for OBS / Discord / WebRTC: `xdg-desktop-portal-wlr`.
+
+1. **Install dependencies**
 
    `pipewire`, `pipewire-pulse`, `xdg-desktop-portal-wlr`
 
-2. **Optional: Add to autostart**
+2. **Optional: explicit portal start**
 
-   In some situations the portal may not start automatically. You can add this to your autostart script to ensure it launches:
+   Some setups need the portal launched explicitly:
 
    ```bash
    /usr/lib/xdg-desktop-portal-wlr &
    ```
 
-3. **Restart your computer** to apply changes.
+3. **Restart** to apply changes.
 
-### Known Issues
+### Known issues
 
-- **Window screen sharing:** Some applications may have issues sharing individual windows. See [#184](https://github.com/mangowm/mango/pull/184) for workarounds.
+- **Window screen sharing:** Some apps have issues sharing individual windows. Upstream tracking issue: [mangowm/mango#184](https://github.com/mangowm/mango/pull/184).
+- **Screen recording lag:** See [xdg-desktop-portal-wlr#351](https://github.com/emersion/xdg-desktop-portal-wlr/issues/351).
 
-- **Screen recording lag:** If you experience stuttering during screen recording, see [xdg-desktop-portal-wlr#351](https://github.com/emersion/xdg-desktop-portal-wlr/issues/351).
+## Clipboard manager
 
-## Clipboard Manager
+`cliphist` for clipboard history.
 
-Use `cliphist` to manage clipboard history.
+**Dependencies:** `wl-clipboard`, `cliphist`, `wl-clip-persist`.
 
-**Dependencies:** `wl-clipboard`, `cliphist`, `wl-clip-persist`
-
-**Autostart Config:**
+**Autostart:**
 
 ```bash
-# Keep clipboard content after app closes
+# Persist clipboard content after the source app closes
 wl-clip-persist --clipboard regular --reconnect-tries 0 &
 
 # Watch clipboard and store history
 wl-paste --type text --watch cliphist store &
 ```
 
-## GNOME Keyring
+## GNOME keyring
 
-If you need to store passwords or secrets (e.g., for VS Code or Minecraft launchers), install `gnome-keyring`.
-
-**Configuration:**
-
-Add the following to `~/.config/xdg-desktop-portal/mango-portals.conf`:
+For password storage (VS Code, Minecraft launchers, etc.), install `gnome-keyring`.
 
 ```ini
+# ~/.config/xdg-desktop-portal/noir-portals.conf
 [preferred]
 default=gtk
 org.freedesktop.impl.portal.ScreenCast=wlr
@@ -69,8 +67,6 @@ org.freedesktop.impl.portal.Secret=gnome-keyring
 org.freedesktop.impl.portal.Inhibit=none
 ```
 
-## File Picker (File Selector)
+## File picker
 
-**Dependencies:** `xdg-desktop-portal`, `xdg-desktop-portal-gtk`
-
-Reboot your computer once to apply.
+**Dependencies:** `xdg-desktop-portal`, `xdg-desktop-portal-gtk`. Reboot once to apply.

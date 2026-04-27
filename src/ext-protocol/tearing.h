@@ -1,3 +1,4 @@
+#include <wlr/types/wlr_content_type_v1.h>
 #include <wlr/types/wlr_tearing_control_v1.h>
 
 struct tearing_controller {
@@ -8,6 +9,7 @@ struct tearing_controller {
 
 struct wlr_tearing_control_manager_v1 *tearing_control;
 struct wl_listener tearing_new_object;
+struct wlr_content_type_manager_v1 *content_type_manager;
 
 static void handle_controller_set_hint(struct wl_listener *listener,
 									   void *data) {
@@ -58,6 +60,17 @@ void handle_tearing_new_object(struct wl_listener *listener, void *data) {
 	wl_signal_add(&new_tearing_control->events.destroy, &controller->destroy);
 }
 
+// Games hint their content type via content-type-v1. Treat that as an
+// implicit tearing request — equivalent to the explicit tearing-control
+// hint — so games don't need a bespoke window rule to opt in.
+static bool client_is_game(Client *c) {
+	struct wlr_surface *s = client_surface(c);
+	if (!s || !content_type_manager)
+		return false;
+	return wlr_surface_get_content_type_v1(content_type_manager, s) ==
+		   WP_CONTENT_TYPE_V1_TYPE_GAME;
+}
+
 bool check_tearing_frame_allow(Monitor *m) {
 	/* never allow tearing when disabled */
 	if (!config.allow_tearing) {
@@ -71,10 +84,12 @@ bool check_tearing_frame_allow(Monitor *m) {
 		return false;
 	}
 
+	bool hint = c->tearing_hint || client_is_game(c);
+
 	/* allow tearing for any window when requested or forced */
 	if (config.allow_tearing == TEARING_ENABLED) {
 		if (c->force_tearing == STATE_UNSPECIFIED) {
-			return c->tearing_hint;
+			return hint;
 		} else {
 			return c->force_tearing == STATE_ENABLED;
 		}
@@ -87,7 +102,7 @@ bool check_tearing_frame_allow(Monitor *m) {
 
 	if (c->force_tearing == STATE_UNSPECIFIED) {
 		/* honor the tearing hint or the fullscreen-force preference */
-		return c->tearing_hint ||
+		return hint ||
 			   config.allow_tearing == TEARING_FULLSCREEN_ONLY;
 	}
 

@@ -4,15 +4,15 @@ self: {
   pkgs,
   ...
 }: let
-  cfg = config.programs.mango;
+  cfg = config.programs.noir;
 in {
   options = {
-    programs.mango = {
-      enable = lib.mkEnableOption "mango, a wayland compositor based on dwl";
+    programs.noir = {
+      enable = lib.mkEnableOption "NoirWM, a Wayland compositor (fork of MangoWC, based on dwl)";
       package = lib.mkOption {
         type = lib.types.package;
-        default = self.packages.${pkgs.stdenv.hostPlatform.system}.mango;
-        description = "The mango package to use";
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.noir;
+        description = "The NoirWM package to use";
       };
     };
   };
@@ -27,7 +27,7 @@ in {
       enable = lib.mkDefault true;
 
       config = {
-        mango = {
+        noir = {
           default = [
             "gtk"
           ];

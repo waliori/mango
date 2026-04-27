@@ -1,42 +1,44 @@
 ---
 title: Introduction
-description: A lightweight and feature-rich Wayland compositor based on dwl.
+description: NoirWM — a Wayland compositor tuned for external shells, fork of MangoWC, based on dwl.
 ---
 
 
-**mango** is a Wayland compositor based on [dwl](https://codeberg.org/dwl/dwl/). It aims to be as lightweight as `dwl` and can be built completely within a few seconds, without compromising on functionality.
+**NoirWM** is a Wayland compositor tuned for external shells. It's a fork of [MangoWC](https://github.com/mangowm/mango) — which itself derives from [dwl](https://codeberg.org/dwl/dwl/) — with marks, IPC state dumps, live toplevel previews, and a handful of new protocols. Pairs with [Quickshell](https://quickshell.outfoxxed.me/).
 
-> **Philosophy:** **Lightweight & Fast**: mango is designed to be minimal yet functional. It compiles in seconds and offers a robust set of features out of the box.
+The binary is `noir`. The dispatcher CLI is `mmsg` (kept from upstream). Configuration lives in `~/.config/noir/`.
 
-## Feature Highlights
+> **Philosophy:** The compositor is the substrate, not the surface. NoirWM stays small and fast, and exposes its state cleanly so external tools — Quickshell, rofi, scripts — can build the rest.
 
-Beyond basic window management, mangowm provides a rich set of features designed for a modern Wayland experience.
+## What's carried over from MangoWC
 
-- **[Animations](/docs/visuals/animations)** — Smooth, customizable animations for opening, moving, closing windows and tag switching.
-- **[Layouts](/docs/window-management/layouts)** — Supports Scroller, Master-Stack, Monocle, Grid, Deck, and more, with per-tag layouts.
-- **[Visual Effects](/docs/visuals/effects)** — Built-in blur, shadows, corner radius, and opacity effects powered by scenefx.
-- **[IPC & Scripting](/docs/ipc)** — Control the compositor externally with robust IPC support for custom scripts and widgets.
+- **[Animations](/docs/visuals/animations)** — smooth, customizable animations for windows, tags, layers.
+- **[Layouts](/docs/window-management/layouts)** — Scroller, Master-Stack, Monocle, Grid, Deck, and more, per-tag.
+- **[Visual effects](/docs/visuals/effects)** — blur, shadows, corner radius, opacity (via [scenefx](https://github.com/wlrfx/scenefx)).
+- **[IPC](/docs/ipc)** — `mmsg` for full external control of compositor state.
+- **XWayland** — solid compatibility for legacy X11 apps.
+- **Tags** instead of workspaces, with separate window layouts per tag.
+- **Rich window states** — swallow, minimize, maximize, fullscreen, overlay, global.
+- **Hot-reload** — config reloads without restart.
+- **Scratchpads** — Sway-like + named.
 
-## Additional Features
+## What NoirWM adds on top of MangoWC
 
-- **XWayland Support** — Excellent compatibility for legacy X11 applications.
-- **Tag System** — Uses tags instead of workspaces, allowing separate window layouts for each tag.
-- **Input Methods** — Great support for text input v2/v3 (Fcitx5, IBus).
-- **Window States** — Rich states including swallow, minimize, maximize, fullscreen, and overlay.
-- **Hot-Reload Config** — Simple external configuration that supports hot-reloading without restarting.
-- **Scratchpads** — Support for both Sway-like and named scratchpads.
-
-## Community
-
-- **[Join the mangowm Discord](https://discord.gg/CPjbDxesh5)** — Chat with the community, get support, share your setup, and stay updated with the latest mangowm news.
-- **[Join the GitHub Discussions](https://github.com/mangowm/mango/discussions)** — Ask questions, request features, report issues, or share ideas directly with contributors and other users.
+- **[Window marks](/docs/window-management/marks)** — Vim-style marks: bind a window to a name, jump back later, swap, focus-or-set toggle. Cursor follows focus.
+- **[Auto-dumped JSON state](/docs/configuration/auto-dump)** — `/tmp/noir_clients.json` and `/tmp/noir_marks.json` re-emit on every relevant state change. Drives inotify-based external UIs (Quickshell, rofi) with zero polling.
+- **[Live toplevel previews](/docs/visuals/live-previews)** — server-side `hyprland-toplevel-export-v1` so external shells can render per-window thumbnails (workspace overview, dock previews, marks overlay).
+- **`xdg-toplevel-icon-v1`** — protocol exposed; client-provided icon names propagate via `dwl-ipc-v3` and the JSON dumps so external icons can adopt app-supplied hints.
+- **`dim_inactive`** — darken unfocused clients via overlay rect (separate from `unfocused_opacity`).
+- **Silent tag navigation** — `tagtoleftsilent`, `tagtorightsilent`, `viewtoleftsilent`, `viewtorightsilent`, `tagsilent` — move/view without forcing focus.
+- **`switch_layout_prev`** — reverse-cycle layouts.
+- **`mmsg` session detection** — accepts `XDG_SESSION_DESKTOP=noir` (so `XDG_CURRENT_DESKTOP` can stay `wlroots` for portal routing without breaking the IPC).
+- **scenefx 0.4.1 with PR #154 backport** vendored — fixes layer blur stencil on rotated outputs.
 
 ## Acknowledgements
 
-This project is built upon the hard work of several open-source projects:
-
-- **[wlroots](https://gitlab.freedesktop.org/wlroots/wlroots)** — Implementation of the Wayland protocol.
-- **[mwc](https://github.com/nikoloc/mwc)** — Basal window animation reference.
-- **[dwl](https://codeberg.org/dwl/dwl)** — Basal dwl features.
-- **[sway](https://github.com/swaywm/sway)** — Sample implementation of the Wayland protocol.
-- **[scenefx](https://github.com/wlrfx/scenefx)** — Library to simplify adding window effects.
+- **[MangoWC](https://github.com/mangowm/mango)** — upstream by DreamMaoMao. NoirWM tracks compatible features.
+- **[dwl](https://codeberg.org/dwl/dwl)** — the dwl Wayland compositor; NoirWM's distant ancestor.
+- **[wlroots](https://gitlab.freedesktop.org/wlroots/wlroots)** — Wayland protocol implementation.
+- **[scenefx](https://github.com/wlrfx/scenefx)** — visual effects library.
+- **[mwc](https://github.com/nikoloc/mwc)** — basal window animation reference.
+- **[sway](https://github.com/swaywm/sway)** — sample Wayland compositor.
