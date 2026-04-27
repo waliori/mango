@@ -1,4 +1,6 @@
 {
+  description = "NoirWM — Wayland compositor tuned for external shells (fork of MangoWC)";
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
@@ -17,8 +19,8 @@
       ];
 
       flake = {
-        hmModules.mango = import ./nix/hm-modules.nix self;
-        nixosModules.mango = import ./nix/nixos-modules.nix self;
+        hmModules.noir = import ./nix/hm-modules.nix self;
+        nixosModules.noir = import ./nix/nixos-modules.nix self;
       };
 
       perSystem = {
@@ -27,20 +29,20 @@
         ...
       }: let
         inherit (pkgs) callPackage ;
-        mango = callPackage ./nix {};
+        noir = callPackage ./nix {};
         shellOverride = old: {
           nativeBuildInputs = old.nativeBuildInputs ++ [];
           buildInputs = old.buildInputs ++ [];
         };
       in {
-        packages.default = mango;
+        packages.default = noir;
         overlayAttrs = {
-          inherit (config.packages) mango;
+          inherit (config.packages) noir;
         };
         packages = {
-          inherit mango;
+          inherit noir;
         };
-        devShells.default = mango.overrideAttrs shellOverride;
+        devShells.default = noir.overrideAttrs shellOverride;
         formatter = pkgs.alejandra;
       };
       systems = [

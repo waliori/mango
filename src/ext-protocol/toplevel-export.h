@@ -1,5 +1,5 @@
 /*
- * hyprland-toplevel-export-v1 — server-side implementation for mango.
+ * hyprland-toplevel-export-v1 — server-side implementation for noirwm.
  *
  * Allows clients (e.g. Quickshell) to capture the contents of any toplevel
  * window via screen capture, including windows on inactive tags. Used to
@@ -8,12 +8,12 @@
  * Protocol XML: protocols/hyprland-toplevel-export-v1.xml
  * Generated header: hyprland-toplevel-export-v1-protocol.h
  *
- * Resources used from the surrounding mango.c translation unit:
+ * Resources used from the surrounding noir.c translation unit:
  *   dpy       — wl_display *
  *   drw       — wlr_renderer *
  *   clients   — wl_list of Client.link
  *   client_surface(c) — returns wlr_surface * for a Client *
- *   Client    — struct definition (forward visible from mango.c)
+ *   Client    — struct definition (forward visible from noir.c)
  */
 
 #include "hyprland-toplevel-export-v1-protocol.h"

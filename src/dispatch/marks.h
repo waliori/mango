@@ -195,7 +195,7 @@ int32_t swap_with_mark(const Arg *arg) {
  */
 static void dumpmarks_to_path(const char *filepath) {
 	if (!filepath || filepath[0] == '\0')
-		filepath = "/tmp/mango_marks.json";
+		filepath = "/tmp/noir_marks.json";
 
 	FILE *f = fopen(filepath, "w");
 	if (!f)
@@ -234,7 +234,7 @@ int32_t dumpmarks(const Arg *arg) {
 
 static inline void auto_dump_marks_maybe(void) {
 	if (config.auto_dump_marks)
-		dumpmarks_to_path("/tmp/mango_marks.json");
+		dumpmarks_to_path("/tmp/noir_marks.json");
 }
 
 /*

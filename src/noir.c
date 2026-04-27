@@ -1528,7 +1528,7 @@ void applyrules(Client *c) {
 		if (!is_window_rule_matches(r, appid, title))
 			continue;
 
-		/* atstartup:1 rules only apply during the first 60s after mango
+		/* atstartup:1 rules only apply during the first 60s after noir
 		 * setup completes — useful for placing session apps on specific
 		 * tags without affecting later-spawned windows of the same app. */
 		if (r->atstartup > 0 && startup_time &&
@@ -5644,7 +5644,7 @@ void handle_print_status(struct wl_listener *listener, void *data) {
 
 void setup(void) {
 
-	setenv("XDG_CURRENT_DESKTOP", "mango", 1);
+	setenv("XDG_CURRENT_DESKTOP", "noir", 1);
 	setenv("_JAVA_AWT_WM_NONREPARENTING", "1", 1);
 
 	parse_config();
@@ -6832,7 +6832,7 @@ int32_t main(int32_t argc, char *argv[]) {
 		} else if (c == 'd') {
 			cli_debug_log = true;
 		} else if (c == 'v') {
-			printf("mango " VERSION "\n");
+			printf("noirwm " VERSION "\n");
 			return EXIT_SUCCESS;
 		} else if (c == 'c') {
 			cli_config_path = optarg;
@@ -6855,10 +6855,10 @@ int32_t main(int32_t argc, char *argv[]) {
 	cleanup();
 	return EXIT_SUCCESS;
 usage:
-	printf("Usage: mango [OPTIONS]\n"
+	printf("Usage: noir [OPTIONS]\n"
 		   "\n"
 		   "Options:\n"
-		   "  -v             Show mango version\n"
+		   "  -v             Show noir version\n"
 		   "  -d             Enable debug log\n"
 		   "  -c <file>      Use custom configuration file\n"
 		   "  -s <command>   Execute startup command\n"

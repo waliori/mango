@@ -3,8 +3,8 @@
 /result
 /build
 config.h
-mango
-mango.o
+noir
+noir.o
 util.o
 *-protocol.h
 *-protocol.c

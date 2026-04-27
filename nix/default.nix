@@ -23,7 +23,7 @@
   debug ? false,
 }:
 stdenv.mkDerivation {
-  pname = "mango";
+  pname = "noirwm";
   version = "nightly";
 
   src = builtins.path {
@@ -72,13 +72,13 @@ stdenv.mkDerivation {
     ];
 
   passthru = {
-    providedSessions = ["mango"];
+    providedSessions = ["noir"];
   };
 
   meta = {
-    mainProgram = "mango";
-    description = "Practical and Powerful wayland compositor (dwm but wayland)";
-    homepage = "https://github.com/mangowm/mango";
+    mainProgram = "noir";
+    description = "NoirWM — Wayland compositor tuned for external shells (fork of MangoWC)";
+    homepage = "https://github.com/waliori/noirwm";
     license = lib.licenses.gpl3Plus;
     maintainers = [];
     platforms = lib.platforms.unix;

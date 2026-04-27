@@ -859,7 +859,7 @@ int32_t spawn_shell(const Arg *arg) {
 
 		// if execlp fails, we should not reach here
 		wlr_log(WLR_DEBUG,
-				"mango: failed to execute command '%s' with shell: %s\n",
+				"noir: failed to execute command '%s' with shell: %s\n",
 				arg->v, strerror(errno));
 		_exit(EXIT_FAILURE);
 	}
@@ -899,7 +899,7 @@ int32_t spawn(const Arg *arg) {
 		execvp(argv[0], argv);
 
 		// 4. execvp 失败时：打印错误并直接退出（避免 coredump）
-		wlr_log(WLR_DEBUG, "mango: execvp '%s' failed: %s\n", argv[0],
+		wlr_log(WLR_DEBUG, "noir: execvp '%s' failed: %s\n", argv[0],
 				strerror(errno));
 		_exit(EXIT_FAILURE); // 使用 _exit 避免缓冲区刷新等操作
 	}
@@ -1948,7 +1948,7 @@ static void json_escape_string(FILE *f, const char *s) {
 /* Core dump used by both the dispatcher and the auto-write hook. */
 static void dumpclients_to_path(const char *filepath) {
 	if (!filepath || filepath[0] == '\0')
-		filepath = "/tmp/mango_clients.json";
+		filepath = "/tmp/noir_clients.json";
 
 	FILE *f = fopen(filepath, "w");
 	if (!f)
@@ -1990,6 +1990,6 @@ int32_t dumpclients(const Arg *arg) {
  * — no polling. */
 static inline void auto_dump_clients_maybe(void) {
 	if (config.auto_dump_clients)
-		dumpclients_to_path("/tmp/mango_clients.json");
+		dumpclients_to_path("/tmp/noir_clients.json");
 }
 

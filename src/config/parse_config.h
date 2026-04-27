@@ -306,8 +306,8 @@ typedef struct {
 	float shadowscolor[4];
 
 	int32_t smartgaps;
-	int32_t auto_dump_clients; /* auto-write /tmp/mango_clients.json on every relevant state change */
-	int32_t auto_dump_marks;   /* auto-write /tmp/mango_marks.json on every mark mutation */
+	int32_t auto_dump_clients; /* auto-write /tmp/noir_clients.json on every relevant state change */
+	int32_t auto_dump_marks;   /* auto-write /tmp/noir_marks.json on every mark mutation */
 	uint32_t gappih;
 	uint32_t gappiv;
 	uint32_t gappoh;
@@ -1246,10 +1246,10 @@ FuncType parse_func_name(char *func_name, Arg *arg, char *arg_value,
 		func = toggle_all_floating;
 	} else if (strcmp(func_name, "dumpclients") == 0) {
 		func = dumpclients;
-		(*arg).v = strdup(arg_value ? arg_value : "/tmp/mango_clients.json");
+		(*arg).v = strdup(arg_value ? arg_value : "/tmp/noir_clients.json");
 	} else if (strcmp(func_name, "dumpmarks") == 0) {
 		func = dumpmarks;
-		(*arg).v = strdup(arg_value ? arg_value : "/tmp/mango_marks.json");
+		(*arg).v = strdup(arg_value ? arg_value : "/tmp/noir_marks.json");
 	} else {
 		return NULL;
 	}
@@ -2868,7 +2868,7 @@ bool parse_config_file(Config *config, const char *file_path, bool must_exist) {
 						"variable not set.\n");
 				return false;
 			}
-			snprintf(full_path, sizeof(full_path), "%s/.config/mango/%s", home,
+			snprintf(full_path, sizeof(full_path), "%s/.config/noir/%s", home,
 					 file_path + 1);
 		}
 		file = fopen(full_path, "r");
@@ -3670,13 +3670,13 @@ bool parse_config(void) {
 			return false;
 		}
 		// 构建日志文件路径
-		snprintf(filename, sizeof(filename), "%s/.config/mango/config.conf",
+		snprintf(filename, sizeof(filename), "%s/.config/noir/config.conf",
 				 homedir);
 
 		// 检查文件是否存在
 		if (access(filename, F_OK) != 0) {
-			// 如果文件不存在，则使用 /etc/mango/config.conf
-			snprintf(filename, sizeof(filename), "%s/mango/config.conf",
+			// 如果文件不存在，则使用 /etc/noir/config.conf
+			snprintf(filename, sizeof(filename), "%s/noir/config.conf",
 					 SYSCONFDIR);
 		}
 	}

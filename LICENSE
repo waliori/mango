@@ -1,6 +1,7 @@
-mango - wayland compositor base wlroots
+noirwm - Wayland compositor based on wlroots (fork of MangoWC)
 
-Copyright © 2025 DreamMaoMao
+Copyright © 2025 waliori
+Copyright © 2025 DreamMaoMao (upstream MangoWC)
 
 See also the files LICENSE.dwl, LICENSE.tinywl, LICENSE.dwm and LICENSE.sway.
 
